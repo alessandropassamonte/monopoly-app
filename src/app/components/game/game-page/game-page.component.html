@@ -1,104 +1,287 @@
 <ion-header>
-    <ion-toolbar color="primary">
-      <ion-title>Monopoly Bank - {{sessionCode}}</ion-title>
-      <ion-buttons slot="end">
-        <ion-button (click)="showMenu()">
-          <ion-icon name="menu"></ion-icon>
-        </ion-button>
-      </ion-buttons>
-    </ion-toolbar>
-  </ion-header>
+  <ion-toolbar color="primary">
+    <ion-title class="monopoly-title">
+      <ion-icon name="diamond-outline" class="title-icon"></ion-icon>
+      Monopoly Bank - {{sessionCode}}
+    </ion-title>
+    <ion-buttons slot="end">
+      <ion-button (click)="showMenu()">
+        <ion-icon name="menu"></ion-icon>
+      </ion-button>
+    </ion-buttons>
+  </ion-toolbar>
+</ion-header>
 
-  <ion-content class="game-content">
+<ion-content style="--background: linear-gradient(135deg, #f7fafc 0%, #edf2f7 100%); 
+                    min-height: 100vh; display: block !important;">
+
+  <div style="padding: 1rem; max-width: 1200px; margin: 0 auto;">
+
     <!-- Players Balance Overview -->
-    <div class="players-overview">
-      <h3>Saldi Giocatori</h3>
-      <div class="players-balance-grid">
-        <div 
-          *ngFor="let player of currentSession?.players" 
-          class="balance-card"
-          [ngClass]="gameService.getPlayerColorClass(player.color)"
-          (click)="selectPlayer(player)">
-          <div class="player-header">
-            <span class="player-name">{{player.name}}</span>
-            <ion-icon *ngIf="player.isHost" name="star" class="host-icon"></ion-icon>
+    <div style="margin-bottom: 2rem;">
+      <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1.5rem;">
+        <div style="width: 4px; height: 2rem; background: linear-gradient(135deg, #48bb78 0%, #38a169 100%); 
+                    border-radius: 2px;"></div>
+        <h3 style="font-family: 'Trebuchet MS', Arial, sans-serif; 
+                   color: #2d3748; margin: 0; font-size: 1.4rem; font-weight: bold;">
+          💰 Saldi Giocatori
+        </h3>
+      </div>
+
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); 
+                  gap: 1.5rem;">
+        <div *ngFor="let player of currentSession?.players"
+          [style]="'background: white; border-radius: 20px; padding: 1.5rem; 
+                      display: flex; align-items: center; gap: 1rem; 
+                      box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1); 
+                      border-left: 6px solid ' + getPlayerColorHex(player.color) + '; 
+                      transition: all 0.3s ease; cursor: pointer; position: relative; overflow: hidden;' + 
+                      (currentPlayer?.id === player.id ? ' border: 3px solid #fbbf24; box-shadow: 0 12px 35px rgba(251, 191, 36, 0.3);' : '')"
+          (click)="selectPlayer(player)"
+          onmouseover="this.style.transform='translateY(-8px)'; this.style.boxShadow='0 15px 40px rgba(0, 0, 0, 0.15)';"
+          onmouseout="this.style.transform='translateY(0px)'; this.style.boxShadow='0 8px 25px rgba(0, 0, 0, 0.1)';">
+
+          <!-- Background Pattern -->
+          <div style="position: absolute; top: -50%; right: -20%; width: 150px; height: 150px; 
+                      background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%); 
+                      border-radius: 50%; pointer-events: none;"></div>
+
+          <!-- Player Avatar -->
+          <div [style]="'width: 70px; height: 70px; border-radius: 50%; 
+                        background: linear-gradient(135deg, ' + getPlayerColorHex(player.color) + ' 0%, ' + darkenColor(getPlayerColorHex(player.color), 20) + ' 100%); 
+                        display: flex; align-items: center; justify-content: center; 
+                        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2); flex-shrink: 0;'">
+            <ion-icon name="person-outline"
+              style="color: white; font-size: 2rem; filter: drop-shadow(1px 1px 2px rgba(0,0,0,0.3));"></ion-icon>
           </div>
-          <div class="player-balance">{{gameService.formatCurrency(player.balance)}}</div>
-          <div class="player-properties">{{player.propertiesCount}} proprietà</div>
+
+          <!-- Player Info -->
+          <div style="flex: 1; z-index: 1;">
+            <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;">
+              <h4 style="margin: 0; font-size: 1.3rem; color: #2d3748; font-weight: bold;">
+                {{player.name}}
+              </h4>
+              <span *ngIf="player.host" style="background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%); 
+                           color: white; padding: 0.2rem 0.6rem; border-radius: 12px; 
+                           font-size: 0.7rem; font-weight: bold; 
+                           box-shadow: 0 2px 8px rgba(251, 191, 36, 0.3);">
+                👑 HOST
+              </span>
+              <span *ngIf="currentPlayer?.id === player.id" style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); 
+                           color: white; padding: 0.2rem 0.6rem; border-radius: 12px; 
+                           font-size: 0.7rem; font-weight: bold; animation: pulse 2s infinite;">
+                ⭐ TU
+              </span>
+            </div>
+
+            <div style="font-weight: bold; color: #38a169; font-size: 1.4rem; 
+                        font-family: 'Courier New', monospace; margin-bottom: 0.3rem;">
+              {{gameService.formatCurrency(player.balance)}}
+            </div>
+
+            <div style="display: flex; align-items: center; gap: 0.5rem; 
+                        font-size: 0.9rem; color: #4a5568;">
+              <ion-icon name="business-outline" style="font-size: 1rem;"></ion-icon>
+              <span>{{player.propertiesCount}} proprietà</span>
+            </div>
+          </div>
         </div>
       </div>
     </div>
 
     <!-- Quick Actions -->
-    <div class="quick-actions">
-      <h3>Azioni Rapide</h3>
-      <div class="action-buttons">
-        <ion-button 
-          expand="block" 
-          fill="outline" 
-          color="primary"
-          (click)="showTransferModal()">
-          <ion-icon name="swap-horizontal" slot="start"></ion-icon>
-          Trasferisci Denaro
-        </ion-button>
-        
-        <ion-button 
-          expand="block" 
-          fill="outline" 
-          color="success"
-          (click)="showBankPaymentModal('FROM_BANK')">
-          <ion-icon name="arrow-down" slot="start"></ion-icon>
-          Ricevi dalla Banca
-        </ion-button>
+    <div style="margin-bottom: 2rem;">
+      <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1.5rem;">
+        <div style="width: 4px; height: 2rem; background: linear-gradient(135deg, #3182ce 0%, #2c5aa0 100%); 
+                    border-radius: 2px;"></div>
+        <h3 style="font-family: 'Trebuchet MS', Arial, sans-serif; 
+                   color: #2d3748; margin: 0; font-size: 1.4rem; font-weight: bold;">
+          🎯 Azioni Rapide
+        </h3>
+      </div>
 
-        <ion-button 
-          expand="block" 
-          fill="outline" 
-          color="warning"
-          (click)="showBankPaymentModal('TO_BANK')">
-          <ion-icon name="arrow-up" slot="start"></ion-icon>
-          Paga alla Banca
-        </ion-button>
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); 
+                  gap: 1rem;">
 
-        <ion-button 
-          expand="block" 
-          fill="outline" 
-          color="tertiary"
-          (click)="showPropertiesModal()">
-          <ion-icon name="business" slot="start"></ion-icon>
-          Gestisci Proprietà
-        </ion-button>
+        <button (click)="showTransferModal()" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+                       color: white; border: none; border-radius: 15px; padding: 1.5rem; 
+                       text-align: left; cursor: pointer; transition: all 0.3s ease; 
+                       box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);"
+          onmouseover="this.style.transform='translateY(-5px)'; this.style.boxShadow='0 8px 25px rgba(102, 126, 234, 0.4)';"
+          onmouseout="this.style.transform='translateY(0px)'; this.style.boxShadow='0 4px 15px rgba(102, 126, 234, 0.3)';">
+          <div style="display: flex; align-items: center; gap: 1rem;">
+            <div style="width: 50px; height: 50px; background: rgba(255,255,255,0.2); 
+                        border-radius: 12px; display: flex; align-items: center; justify-content: center;">
+              <ion-icon name="swap-horizontal" style="font-size: 1.5rem;"></ion-icon>
+            </div>
+            <div>
+              <h4 style="margin: 0 0 0.3rem 0; font-size: 1.1rem; font-weight: bold;">Trasferisci Denaro</h4>
+              <p style="margin: 0; font-size: 0.9rem; opacity: 0.9;">Sposta soldi tra giocatori</p>
+            </div>
+          </div>
+        </button>
+
+        <button (click)="showBankPaymentModal('FROM_BANK')" style="background: linear-gradient(135deg, #48bb78 0%, #38a169 100%); 
+                       color: white; border: none; border-radius: 15px; padding: 1.5rem; 
+                       text-align: left; cursor: pointer; transition: all 0.3s ease; 
+                       box-shadow: 0 4px 15px rgba(72, 187, 120, 0.3);"
+          onmouseover="this.style.transform='translateY(-5px)'; this.style.boxShadow='0 8px 25px rgba(72, 187, 120, 0.4)';"
+          onmouseout="this.style.transform='translateY(0px)'; this.style.boxShadow='0 4px 15px rgba(72, 187, 120, 0.3)';">
+          <div style="display: flex; align-items: center; gap: 1rem;">
+            <div style="width: 50px; height: 50px; background: rgba(255,255,255,0.2); 
+                        border-radius: 12px; display: flex; align-items: center; justify-content: center;">
+              <ion-icon name="arrow-down" style="font-size: 1.5rem;"></ion-icon>
+            </div>
+            <div>
+              <h4 style="margin: 0 0 0.3rem 0; font-size: 1.1rem; font-weight: bold;">Ricevi dalla Banca</h4>
+              <p style="margin: 0; font-size: 0.9rem; opacity: 0.9;">Stipendio, premi, vincite</p>
+            </div>
+          </div>
+        </button>
+
+        <button (click)="showBankPaymentModal('TO_BANK')" style="background: linear-gradient(135deg, #ed8936 0%, #dd6b20 100%); 
+                       color: white; border: none; border-radius: 15px; padding: 1.5rem; 
+                       text-align: left; cursor: pointer; transition: all 0.3s ease; 
+                       box-shadow: 0 4px 15px rgba(237, 137, 54, 0.3);"
+          onmouseover="this.style.transform='translateY(-5px)'; this.style.boxShadow='0 8px 25px rgba(237, 137, 54, 0.4)';"
+          onmouseout="this.style.transform='translateY(0px)'; this.style.boxShadow='0 4px 15px rgba(237, 137, 54, 0.3)';">
+          <div style="display: flex; align-items: center; gap: 1rem;">
+            <div style="width: 50px; height: 50px; background: rgba(255,255,255,0.2); 
+                        border-radius: 12px; display: flex; align-items: center; justify-content: center;">
+              <ion-icon name="arrow-up" style="font-size: 1.5rem;"></ion-icon>
+            </div>
+            <div>
+              <h4 style="margin: 0 0 0.3rem 0; font-size: 1.1rem; font-weight: bold;">Paga alla Banca</h4>
+              <p style="margin: 0; font-size: 0.9rem; opacity: 0.9;">Tasse, multe, costi</p>
+            </div>
+          </div>
+        </button>
+
+        <button (click)="showPropertiesModal()" style="background: linear-gradient(135deg, #805ad5 0%, #6b46c1 100%); 
+                       color: white; border: none; border-radius: 15px; padding: 1.5rem; 
+                       text-align: left; cursor: pointer; transition: all 0.3s ease; 
+                       box-shadow: 0 4px 15px rgba(128, 90, 213, 0.3);"
+          onmouseover="this.style.transform='translateY(-5px)'; this.style.boxShadow='0 8px 25px rgba(128, 90, 213, 0.4)';"
+          onmouseout="this.style.transform='translateY(0px)'; this.style.boxShadow='0 4px 15px rgba(128, 90, 213, 0.3)';">
+          <div style="display: flex; align-items: center; gap: 1rem;">
+            <div style="width: 50px; height: 50px; background: rgba(255,255,255,0.2); 
+                        border-radius: 12px; display: flex; align-items: center; justify-content: center;">
+              <ion-icon name="business" style="font-size: 1.5rem;"></ion-icon>
+            </div>
+            <div>
+              <h4 style="margin: 0 0 0.3rem 0; font-size: 1.1rem; font-weight: bold;">Gestisci Proprietà</h4>
+              <p style="margin: 0; font-size: 0.9rem; opacity: 0.9;">Compra, costruisci, ipoteca</p>
+            </div>
+          </div>
+        </button>
       </div>
     </div>
 
     <!-- Recent Transactions -->
-    <div class="transactions-section">
-      <div class="section-header">
-        <h3>Transazioni Recenti</h3>
-        <ion-button 
-          fill="clear" 
-          size="small"
-          (click)="refreshTransactions()">
-          <ion-icon name="refresh"></ion-icon>
-        </ion-button>
+    <div style="margin-bottom: 2rem;">
+      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem;">
+        <div style="display: flex; align-items: center; gap: 1rem;">
+          <div style="width: 4px; height: 2rem; background: linear-gradient(135deg, #e53e3e 0%, #c53030 100%); 
+                      border-radius: 2px;"></div>
+          <h3 style="font-family: 'Trebuchet MS', Arial, sans-serif; 
+                     color: #2d3748; margin: 0; font-size: 1.4rem; font-weight: bold;">
+            📊 Transazioni Recenti
+          </h3>
+        </div>
+
+        <button (click)="refreshTransactions()" style="background: #e2e8f0; color: #4a5568; border: none; border-radius: 10px; 
+                       padding: 0.5rem 1rem; cursor: pointer; transition: all 0.2s ease; 
+                       display: flex; align-items: center; gap: 0.5rem;" onmouseover="this.style.background='#cbd5e0';"
+          onmouseout="this.style.background='#e2e8f0';">
+          <ion-icon name="refresh" style="font-size: 1rem;"></ion-icon>
+          <span style="font-size: 0.9rem; font-weight: 500;">Aggiorna</span>
+        </button>
       </div>
-      
-      <div class="transactions-list">
-        <div 
-          *ngFor="let transaction of recentTransactions" 
-          class="transaction-item"
-          [ngClass]="getTransactionClass(transaction)">
-          <div class="transaction-info">
-            <div class="transaction-description">{{transaction.description}}</div>
-            <div class="transaction-players">
-              {{transaction.fromPlayerName}} → {{transaction.toPlayerName}}
+
+      <div style="background: white; border-radius: 20px; padding: 1.5rem; 
+                  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1); min-height: 300px;">
+
+        <!-- Empty State -->
+        <div *ngIf="!recentTransactions || recentTransactions.length === 0"
+          style="text-align: center; padding: 3rem 1rem; color: #4a5568;">
+          <ion-icon name="receipt-outline"
+            style="font-size: 4rem; opacity: 0.3; margin-bottom: 1rem; display: block;"></ion-icon>
+          <h4 style="margin: 0 0 0.5rem 0; font-size: 1.2rem;">Nessuna transazione</h4>
+          <p style="margin: 0; opacity: 0.7;">Le transazioni di gioco appariranno qui</p>
+        </div>
+
+        <!-- Transactions List -->
+        <div *ngIf="recentTransactions && recentTransactions.length > 0" style="space-y: 1rem;">
+          <div *ngFor="let transaction of recentTransactions; let i = index" [style]="'padding: 1rem; border-radius: 12px; border-left: 4px solid ' + getTransactionColor(transaction) + '; 
+                        background: ' + getTransactionBg(transaction) + '; margin-bottom: 1rem; 
+                        transition: all 0.2s ease; cursor: pointer;'"
+            onmouseover="this.style.transform='translateX(5px)'" onmouseout="this.style.transform='translateX(0px)'">
+
+            <div style="display: flex; justify-content: between; align-items: start; gap: 1rem;">
+              <div style="flex: 1;">
+                <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;">
+                  <ion-icon [name]="getTransactionIcon(transaction)"
+                    [style]="'font-size: 1.2rem; color: ' + getTransactionColor(transaction)"></ion-icon>
+                  <h5 style="margin: 0; font-size: 1rem; font-weight: bold; color: #2d3748;">
+                    {{transaction.description}}
+                  </h5>
+                </div>
+
+                <div style="font-size: 0.9rem; color: #4a5568; margin-bottom: 0.3rem;">
+                  <span style="font-weight: 500;">{{transaction.fromPlayerName}}</span>
+                  <ion-icon name="arrow-forward" style="margin: 0 0.5rem; font-size: 0.8rem;"></ion-icon>
+                  <span style="font-weight: 500;">{{transaction.toPlayerName}}</span>
+                </div>
+
+                <div style="font-size: 0.8rem; color: #718096; display: flex; align-items: center; gap: 0.3rem;">
+                  <ion-icon name="time-outline" style="font-size: 0.8rem;"></ion-icon>
+                  {{formatTime(transaction.timestamp)}}
+                </div>
+              </div>
+
+              <div [style]="'font-weight: bold; font-size: 1.2rem; font-family: Courier New, monospace; color: ' 
+        + getAmountColor(transaction)" class="transaction-amount">
+                {{gameService.formatCurrency(transaction.amount)}}
+              </div>
             </div>
-            <div class="transaction-time">{{formatTime(transaction.timestamp)}}</div>
-          </div>
-          <div class="transaction-amount" [ngClass]="getAmountClass(transaction)">
-            {{gameService.formatCurrency(transaction.amount)}}
           </div>
         </div>
       </div>
     </div>
-  </ion-content>
+
+  </div>
+</ion-content>
+
+<style>
+  @keyframes pulse {
+
+    0%,
+    100% {
+      opacity: 1;
+    }
+
+    50% {
+      opacity: 0.7;
+    }
+  }
+
+  @media (max-width: 768px) {
+    .players-grid {
+      grid-template-columns: 1fr !important;
+    }
+
+    .action-buttons {
+      grid-template-columns: 1fr !important;
+    }
+  }
+
+  @media (max-width: 480px) {
+    .transaction-item {
+      padding: 1rem 0.75rem !important;
+    }
+
+    .transaction-amount {
+      font-size: 1rem !important;
+    }
+  }
+</style>

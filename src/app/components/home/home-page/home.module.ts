@@ -5,6 +5,7 @@ import { IonicModule } from '@ionic/angular';
 import { HomePageComponent } from './home-page.component';
 import { HomePageRoutingModule } from './home-routing.module';
 
+console.log('HomeModule loading...');
 
 @NgModule({
   imports: [
@@ -15,4 +16,8 @@ import { HomePageRoutingModule } from './home-routing.module';
   ],
   declarations: [HomePageComponent]
 })
-export class HomePageModule {}
+export class HomePageModule {
+  constructor() {
+    console.log('HomePageModule constructor called');
+  }
+}

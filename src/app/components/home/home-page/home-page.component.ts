@@ -1,7 +1,7 @@
-
-import { Component } from '@angular/core';
+import { Component, OnInit } from '@angular/core';
 import { Router } from '@angular/router';
 import { AlertController, LoadingController } from '@ionic/angular';
+import { firstValueFrom } from 'rxjs';
 import { ApiService } from '../../../services/api.service';
 import { GameService } from '../../../services/game.service';
 import { PlayerColor } from '../../../models/player.model';
@@ -11,7 +11,8 @@ import { PlayerColor } from '../../../models/player.model';
   templateUrl: './home-page.component.html',
   styleUrls: ['./home-page.component.scss']
 })
-export class HomePageComponent {
+export class HomePageComponent implements OnInit {
+  
   constructor(
     private router: Router,
     private alertController: AlertController,
@@ -19,6 +20,11 @@ export class HomePageComponent {
     private apiService: ApiService,
     private gameService: GameService
   ) {}
+
+  ngOnInit() {
+    // Pulisci i dati della sessione precedente quando torni alla home
+    this.gameService.clearStorage();
+  }
 
   async showCreateSessionModal() {
     const alert = await this.alertController.create({
@@ -99,20 +105,55 @@ export class HomePageComponent {
     await loading.present();
 
     try {
-      const session = await this.apiService.createSession(hostName).toPromise();
+      console.log('Creating session for host:', hostName);
+      const session = await firstValueFrom(this.apiService.createSession(hostName));
+      
       if (session) {
+        console.log('Session created successfully:', session);
+        console.log('Session players:', session.players);
+        
+        // CORREZIONE: Gestione più robusta del currentPlayer
+        // Salva prima la sessione
         this.gameService.setCurrentSession(session);
-        const hostPlayer = session.players.find(p => p.isHost);
-        if (hostPlayer) {
-          this.gameService.setCurrentPlayer(hostPlayer);
+        
+        // Trova l'host player usando più criteri
+        let hostPlayer = session.players.find(p => p.host === true);
+        
+        // Se non trova l'host con isHost, cerca per nome
+        if (!hostPlayer) {
+          hostPlayer = session.players.find(p => p.name === hostName);
+          console.warn('Host found by name instead of isHost flag:', hostPlayer);
         }
-        this.router.navigate(['/lobby', session.sessionCode]);
+        
+        // Se ancora non lo trova, prendi il primo (fallback)
+        if (!hostPlayer && session.players.length > 0) {
+          hostPlayer = session.players[0];
+          console.warn('Using first player as fallback host:', hostPlayer);
+        }
+        
+        if (hostPlayer) {
+          console.log('Host player set:', hostPlayer);
+          console.log('Host player isHost property:', hostPlayer.host);
+          
+          // Salva nel localStorage per debug
+          localStorage.setItem('monopoly_debug_host_name', hostName);
+          localStorage.setItem('monopoly_debug_session_players', JSON.stringify(session.players));
+          
+          this.gameService.setCurrentPlayer(hostPlayer);
+          
+          // Naviga alla lobby
+          this.router.navigate(['/lobby', session.sessionCode]);
+        } else {
+          throw new Error('Impossibile identificare il player host nella sessione creata');
+        }
+      } else {
+        throw new Error('Session creation returned null');
       }
     } catch (error) {
       console.error('Error creating session:', error);
       const alert = await this.alertController.create({
         header: 'Errore',
-        message: 'Errore nella creazione della sessione',
+        message: 'Errore nella creazione della sessione. Riprova.',
         buttons: ['OK']
       });
       await alert.present();
@@ -123,15 +164,30 @@ export class HomePageComponent {
 
   async joinSession(sessionCode: string, playerName: string) {
     const loading = await this.loadingController.create({
-      message: 'Accesso alla sessione...'
+      message: 'Verifica sessione...'
     });
     await loading.present();
 
     try {
-      // Show color selection
+      // Prima verifica che la sessione esista
+      const existingSession = await firstValueFrom(this.apiService.getSession(sessionCode));
+      if (!existingSession) {
+        throw new Error('Sessione non trovata');
+      }
+
+      // Verifica che il nome non sia già preso
+      const nameExists = existingSession.players.some(p => p.name.toLowerCase() === playerName.toLowerCase());
+      if (nameExists) {
+        throw new Error('Nome già utilizzato in questa sessione');
+      }
+
+      loading.dismiss();
+
+      // Mostra selezione colore
       const colorAlert = await this.alertController.create({
         header: 'Scegli il tuo colore',
-        inputs: Object.values(PlayerColor).map(color => ({
+        message: `Unisciti alla sessione ${sessionCode} come ${playerName}`,
+        inputs: this.getAvailableColors(existingSession).map(color => ({
           name: 'color',
           type: 'radio',
           label: this.getColorLabel(color),
@@ -146,37 +202,102 @@ export class HomePageComponent {
             text: 'Conferma',
             handler: async (selectedColor) => {
               if (selectedColor) {
-                try {
-                  const session = await this.apiService.joinSession(sessionCode, playerName, selectedColor).toPromise();
-                  if (session) {
-                    this.gameService.setCurrentSession(session);
-                    const currentPlayer = session.players.find(p => p.name === playerName);
-                    if (currentPlayer) {
-                      this.gameService.setCurrentPlayer(currentPlayer);
-                    }
-                    this.router.navigate(['/lobby', sessionCode]);
-                  }
-                } catch (error) {
-                  console.error('Error joining session:', error);
-                  const errorAlert = await this.alertController.create({
-                    header: 'Errore',
-                    message: 'Errore nell\'accesso alla sessione. Verifica il codice o il colore scelto.',
-                    buttons: ['OK']
-                  });
-                  await errorAlert.present();
-                }
+                await this.executeJoinSession(sessionCode, playerName, selectedColor);
               }
-              loading.dismiss();
             }
           }
         ]
       });
-      loading.dismiss();
       await colorAlert.present();
+
     } catch (error) {
       loading.dismiss();
       console.error('Error joining session:', error);
+      
+      let errorMessage = 'Errore nell\'accesso alla sessione';
+      if (error instanceof Error) {
+        errorMessage = error.message;
+      }
+      
+      const errorAlert = await this.alertController.create({
+        header: 'Errore',
+        message: errorMessage,
+        buttons: ['OK']
+      });
+      await errorAlert.present();
     }
+  }
+
+  private async executeJoinSession(sessionCode: string, playerName: string, selectedColor: PlayerColor) {
+    const loading = await this.loadingController.create({
+      message: 'Accesso alla sessione...'
+    });
+    await loading.present();
+
+    try {
+      console.log('Joining session:', sessionCode, 'as:', playerName, 'color:', selectedColor);
+      
+      const session = await firstValueFrom(this.apiService.joinSession(sessionCode, playerName, selectedColor));
+      
+      if (session) {
+        console.log('Successfully joined session:', session);
+        console.log('Session players after join:', session.players);
+        
+        // Salva la sessione
+        this.gameService.setCurrentSession(session);
+        
+        // CORREZIONE: Trova il current player con più precisione
+        let currentPlayer = session.players.find(p => 
+          p.name === playerName && p.color === selectedColor
+        );
+        
+        // Fallback: cerca solo per nome
+        if (!currentPlayer) {
+          currentPlayer = session.players.find(p => p.name === playerName);
+          console.warn('Player found by name only:', currentPlayer);
+        }
+        
+        if (currentPlayer) {
+          console.log('Current player found and set:', currentPlayer);
+          console.log('Current player isHost property:', currentPlayer.host);
+          
+          // Salva nel localStorage per debug
+          localStorage.setItem('monopoly_debug_join_name', playerName);
+          localStorage.setItem('monopoly_debug_join_color', selectedColor);
+          localStorage.setItem('monopoly_debug_session_players_join', JSON.stringify(session.players));
+          
+          this.gameService.setCurrentPlayer(currentPlayer);
+          
+          // Naviga alla lobby
+          this.router.navigate(['/lobby', sessionCode]);
+        } else {
+          throw new Error(`Impossibile trovare il player ${playerName} nella sessione dopo il join`);
+        }
+      } else {
+        throw new Error('Join session returned null');
+      }
+    } catch (error) {
+      console.error('Error executing join session:', error);
+      
+      let errorMessage = 'Errore nell\'accesso alla sessione';
+      if (error instanceof Error) {
+        errorMessage = error.message;
+      }
+      
+      const errorAlert = await this.alertController.create({
+        header: 'Errore',
+        message: errorMessage,
+        buttons: ['OK']
+      });
+      await errorAlert.present();
+    } finally {
+      loading.dismiss();
+    }
+  }
+
+  private getAvailableColors(session: any): PlayerColor[] {
+    const usedColors = session.players.map((p: any) => p.color);
+    return Object.values(PlayerColor).filter(color => !usedColors.includes(color));
   }
 
   getColorLabel(color: PlayerColor): string {
@@ -192,5 +313,4 @@ export class HomePageComponent {
     };
     return labels[color];
   }
-
 }

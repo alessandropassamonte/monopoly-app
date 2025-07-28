@@ -1,34 +1,83 @@
-<ion-header [translucent]="true">
-    <ion-toolbar color="primary">
-      <ion-title class="monopoly-title">
-        <ion-icon name="home" class="title-icon"></ion-icon>
-        Monopoly Bank
-      </ion-title>
-    </ion-toolbar>
-  </ion-header>
+<ion-header>
+  <ion-toolbar color="primary">
+    <ion-title class="monopoly-title">
+      <ion-icon name="home"></ion-icon>
+      Monopoly Bank
+    </ion-title>
+  </ion-toolbar>
+</ion-header>
 
-  <ion-content [fullscreen]="true" class="home-content">
-    <div class="hero-section">
-      <div class="logo-container">
-        <div class="monopoly-logo">
-          <ion-icon name="business" class="logo-icon"></ion-icon>
-          <h1>MONOPOLY</h1>
-          <p>Companion App</p>
-        </div>
+<ion-content style="--background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+                    height: 100vh; display: block !important;">
+  
+  <div style="display: flex; flex-direction: column; align-items: center; 
+              padding: 2rem 1rem; min-height: calc(100vh - 56px);">
+    
+    <!-- Logo Section -->
+    <div style="text-align: center; color: white; margin-bottom: 3rem; margin-top: 2rem;">
+      <ion-icon name="business-outline" 
+                style="font-size: 4rem; display: block; margin-bottom: 1rem; 
+                       filter: drop-shadow(2px 2px 4px rgba(0,0,0,0.3));"></ion-icon>
+      <h1 style="font-family: 'Trebuchet MS', Arial, sans-serif; 
+                 font-size: 3rem; font-weight: bold; margin: 0; 
+                 text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3); 
+                 letter-spacing: 2px;">MONOPOLY</h1>
+      <p style="font-size: 1.2rem; opacity: 0.9; margin: 0.5rem 0 0 0; 
+                letter-spacing: 1px;">Companion App</p>
+    </div>
+
+    <!-- Action Cards -->
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; 
+                width: 100%; max-width: 400px;">
+      
+      <!-- Create Session Card -->
+      <div style="background: white; border-radius: 20px; padding: 2rem 1rem; 
+                  text-align: center; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2); 
+                  cursor: pointer; transition: all 0.3s ease; border: 3px solid transparent;"
+           (click)="showCreateSessionModal()"
+           onmouseover="this.style.transform='translateY(-5px)'; this.style.borderColor='#38a169';"
+           onmouseout="this.style.transform='translateY(0px)'; this.style.borderColor='transparent';">
+        
+        <ion-icon name="add-circle-outline" 
+                  style="font-size: 3rem; color: #38a169; margin-bottom: 1rem; display: block;"></ion-icon>
+        <h3 style="font-family: 'Trebuchet MS', Arial, sans-serif; 
+                   font-size: 1.3rem; font-weight: bold; margin: 0 0 0.5rem 0; 
+                   color: #2d3748;">Crea Sessione</h3>
+        <p style="font-size: 0.9rem; color: #4a5568; margin: 0; line-height: 1.4;">
+          Inizia una nuova partita come host
+        </p>
       </div>
 
-      <div class="action-cards">
-        <div class="action-card create-card" (click)="showCreateSessionModal()">
-          <ion-icon name="add-circle" class="card-icon"></ion-icon>
-          <h3>Crea Sessione</h3>
-          <p>Inizia una nuova partita come host</p>
-        </div>
-
-        <div class="action-card join-card" (click)="showJoinSessionModal()">
-          <ion-icon name="enter" class="card-icon"></ion-icon>
-          <h3>Unisciti</h3>
-          <p>Entra in una partita esistente</p>
-        </div>
+      <!-- Join Session Card -->
+      <div style="background: white; border-radius: 20px; padding: 2rem 1rem; 
+                  text-align: center; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2); 
+                  cursor: pointer; transition: all 0.3s ease; border: 3px solid transparent;"
+           (click)="showJoinSessionModal()"
+           onmouseover="this.style.transform='translateY(-5px)'; this.style.borderColor='#3182ce';"
+           onmouseout="this.style.transform='translateY(0px)'; this.style.borderColor='transparent';">
+        
+        <ion-icon name="enter-outline" 
+                  style="font-size: 3rem; color: #3182ce; margin-bottom: 1rem; display: block;"></ion-icon>
+        <h3 style="font-family: 'Trebuchet MS', Arial, sans-serif; 
+                   font-size: 1.3rem; font-weight: bold; margin: 0 0 0.5rem 0; 
+                   color: #2d3748;">Unisciti</h3>
+        <p style="font-size: 0.9rem; color: #4a5568; margin: 0; line-height: 1.4;">
+          Entra in una partita esistente
+        </p>
       </div>
     </div>
-  </ion-content>
+  </div>
+</ion-content>
+
+<style>
+  @media (max-width: 480px) {
+    .action-cards {
+      grid-template-columns: 1fr !important;
+      max-width: 300px !important;
+    }
+    
+    .monopoly-logo h1 {
+      font-size: 2.5rem !important;
+    }
+  }
+</style>

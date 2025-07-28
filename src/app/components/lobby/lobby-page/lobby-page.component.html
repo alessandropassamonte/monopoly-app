@@ -1,75 +1,186 @@
 <ion-header>
-    <ion-toolbar color="primary">
-      <ion-buttons slot="start">
-        <ion-button (click)="goBack()">
-          <ion-icon name="arrow-back"></ion-icon>
-        </ion-button>
-      </ion-buttons>
-      <ion-title>Lobby - {{sessionCode}}</ion-title>
-      <ion-buttons slot="end" *ngIf="isHost">
-        <ion-button (click)="endSession()">
-          <ion-icon name="close"></ion-icon>
-        </ion-button>
-      </ion-buttons>
-    </ion-toolbar>
-  </ion-header>
+  <ion-toolbar color="primary">
+    <ion-buttons slot="start">
+      <ion-button (click)="goBack()">
+        <ion-icon name="arrow-back-outline"></ion-icon>
+      </ion-button>
+    </ion-buttons>
+    <ion-title>Lobby - {{sessionCode}}</ion-title>
+    <ion-buttons slot="end" *ngIf="isHost">
+      <ion-button (click)="endSession()">
+        <ion-icon name="close-outline"></ion-icon>
+      </ion-button>
+    </ion-buttons>
+  </ion-toolbar>
+</ion-header>
 
-  <ion-content class="lobby-content">
-    <div class="session-info" *ngIf="currentSession">
-      <div class="session-card">
-        <h2>Codice Sessione</h2>
-        <div class="session-code">{{sessionCode}}</div>
-        <p>Host: {{currentSession.hostName}}</p>
-        <p>Giocatori: {{currentSession.players.length}}/8</p>
+<ion-content style="--background: #f7fafc; min-height: 100vh; display: block !important;">
+  <div style="padding: 1rem;">
+    
+    <!-- DEBUG INFO (rimuovi in produzione) -->
+    <div style="background: orange; color: white; padding: 10px; margin: 10px 0; border-radius: 5px; font-size: 0.8rem;">
+      <strong>DEBUG:</strong>
+      isHost: {{isHost}} | 
+      status: {{currentSession?.status}} | 
+      players: {{currentSession?.players?.length}} | 
+      currentPlayer: {{currentPlayer?.name || 'null'}}
+    </div>
+
+    <!-- SELEZIONE MANUALE DI EMERGENZA (solo se currentPlayer è null) -->
+    <div *ngIf="!currentPlayer && currentSession?.players" 
+         style="background: #fed7d7; color: #9b2c2c; padding: 15px; margin: 10px 0; border-radius: 5px; border-left: 4px solid #e53e3e;">
+      <h4 style="margin: 0 0 10px 0;">⚠️ Player non riconosciuto - Seleziona manualmente:</h4>
+      <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+        <button *ngFor="let player of currentSession.players"
+                (click)="setCurrentPlayer(player)"
+                [style]="'padding: 8px 12px; border-radius: 6px; border: none; 
+                         color: white; font-weight: bold; cursor: pointer; font-size: 0.9rem;
+                         background: ' + getPlayerColor(player.color)">
+          {{player.name}} {{player.host ? '👑' : ''}}
+        </button>
       </div>
     </div>
 
-    <div class="players-section">
-      <h3>Giocatori Connessi</h3>
-      <div class="players-grid">
-        <div 
-          *ngFor="let player of currentSession?.players" 
-          class="player-card"
-          [ngClass]="gameService.getPlayerColorClass(player.color)">
-          <div class="player-avatar">
-            <ion-icon name="person" class="avatar-icon"></ion-icon>
+    <!-- Session Info -->
+    <div *ngIf="currentSession" style="margin-bottom: 2rem;">
+      <div style="background: white; border-radius: 15px; padding: 1.5rem; 
+                  text-align: center; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1); 
+                  border-left: 5px solid #38a169;">
+        <h2 style="font-family: 'Trebuchet MS', Arial, sans-serif; 
+                   color: #2d3748; margin: 0 0 1rem 0; font-size: 1.4rem;">
+          Codice Sessione
+        </h2>
+        <div style="font-size: 2.5rem; font-weight: bold; color: #38a169; 
+                    font-family: 'Courier New', monospace; letter-spacing: 0.2em; 
+                    margin: 1rem 0; padding: 0.5rem; background: #edf2f7; 
+                    border-radius: 10px; border: 2px dashed #38a169;">
+          {{sessionCode}}
+        </div>
+        <p style="color: #4a5568; margin: 0.5rem 0; font-size: 1rem;">
+          Host: {{currentSession.hostName}}
+        </p>
+        <p style="color: #4a5568; margin: 0.5rem 0; font-size: 1rem;">
+          Giocatori: {{currentSession.players?.length}}/8
+        </p>
+      </div>
+    </div>
+
+    <!-- Players Section -->
+    <div style="margin-bottom: 2rem;">
+      <h3 style="font-family: 'Trebuchet MS', Arial, sans-serif; 
+                 color: #2d3748; margin: 0 0 1rem 0; padding: 0 0.5rem;">
+        Giocatori Connessi
+      </h3>
+      
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); 
+                  gap: 1rem;">
+        <div *ngFor="let player of currentSession?.players"
+             [style]="'background: white; border-radius: 12px; padding: 1rem; 
+                      display: flex; align-items: center; gap: 1rem; 
+                      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1); 
+                      border-left: 4px solid ' + getPlayerColor(player.color) + '; 
+                      transition: transform 0.2s ease;' + 
+                      (currentPlayer?.id === player.id ? ' border: 3px solid #fbbf24; background: #fffbeb;' : '')"
+             onmouseover="this.style.transform='translateY(-2px)'"
+             onmouseout="this.style.transform='translateY(0px)'">
+          
+          <!-- Player Avatar -->
+          <div [style]="'width: 50px; height: 50px; border-radius: 50%; 
+                        background: ' + getPlayerColor(player.color) + '; 
+                        display: flex; align-items: center; justify-content: center;'">
+            <ion-icon name="person-outline" 
+                      style="color: white; font-size: 1.5rem;"></ion-icon>
           </div>
-          <div class="player-info">
-            <h4>{{player.name}}</h4>
-            <span class="player-role" *ngIf="player.isHost">👑 Host</span>
-            <span class="player-balance">{{gameService.formatCurrency(player.balance)}}</span>
+          
+          <!-- Player Info -->
+          <div style="flex: 1;">
+            <h4 style="margin: 0 0 0.25rem 0; font-size: 1.1rem; color: #2d3748;">
+              {{player.name}}
+              <span *ngIf="currentPlayer?.id === player.id" 
+                    style="color: #f59e0b; font-weight: bold; margin-left: 0.5rem;">
+                ⭐ (TU)
+              </span>
+            </h4>
+            <span *ngIf="player.host" 
+                  style="font-size: 0.8rem; color: #d69e2e; 
+                         display: block; margin-bottom: 0.25rem; font-weight: bold;">
+              👑 Host
+            </span>
+            <span style="font-weight: bold; color: #38a169; font-size: 1rem; 
+                         font-family: 'Courier New', monospace;">
+              {{gameService.formatCurrency(player.balance)}}
+            </span>
           </div>
         </div>
       </div>
     </div>
 
-    <div class="action-section" *ngIf="currentSession?.status === 'WAITING'">
-      <ion-button 
-        *ngIf="isHost && currentSession.players.length >= 2"
-        expand="block" 
-        color="success"
-        size="large"
-        class="start-button"
-        (click)="startGame()">
-        <ion-icon name="play" slot="start"></ion-icon>
-        Inizia Partita
+    <!-- Action Section -->
+    <div style="margin: 2rem 0; text-align: center;">
+      
+      <!-- Start Button (solo per host) -->
+      <ion-button *ngIf="isHost && (currentSession?.players?.length || 0) >= 2 && currentSession?.status === 'WAITING'"
+                  expand="block" 
+                  color="success"
+                  size="large"
+                  (click)="startGame()"
+                  style="--background: linear-gradient(135deg, #48bb78 0%, #38a169 100%); 
+                         --border-radius: 25px; height: 60px; font-weight: bold; 
+                         font-size: 1.1rem; margin: 1rem 0;">
+        <ion-icon name="play-outline" slot="start"></ion-icon>
+        🎮 INIZIA PARTITA
       </ion-button>
 
-      <div *ngIf="currentSession.players.length < 2" class="waiting-message">
-        <ion-icon name="hourglass" class="waiting-icon"></ion-icon>
-        <p>In attesa di altri giocatori...</p>
-        <p class="hint">Servono almeno 2 giocatori per iniziare</p>
+      <!-- Waiting for players -->
+      <div *ngIf="(currentSession?.players?.length || 0) < 2" 
+           style="padding: 2rem 1rem; background: #fef3c7; border-radius: 12px; border-left: 4px solid #f59e0b;">
+        <ion-icon name="hourglass-outline" 
+                  style="font-size: 3rem; color: #d69e2e; 
+                         animation: spin 2s linear infinite; display: block; margin-bottom: 1rem;"></ion-icon>
+        <p style="margin: 1rem 0 0.5rem 0; color: #78350f; font-size: 1.1rem; font-weight: 600;">
+          In attesa di altri giocatori...
+        </p>
+        <p style="font-size: 0.9rem; color: #a16207; margin: 0;">
+          Servono almeno 2 giocatori per iniziare
+        </p>
+      </div>
+
+      <!-- Waiting for host -->
+      <div *ngIf="!isHost && currentPlayer && (currentSession?.players?.length || 0) >= 2" 
+           style="padding: 1.5rem; background: #dbeafe; border-radius: 12px; border-left: 4px solid #3b82f6; margin: 1rem 0;">
+        <ion-icon name="hourglass-outline" 
+                  style="font-size: 2rem; color: #1d4ed8; display: block; margin-bottom: 0.5rem;"></ion-icon>
+        <p style="color: #1e40af; margin: 0; font-weight: 600;">
+          ⏳ In attesa che l'host <strong>{{currentSession?.hostName}}</strong> avvii la partita...
+        </p>
       </div>
     </div>
 
-    <div class="game-started" *ngIf="currentSession?.status === 'IN_PROGRESS'">
-      <ion-button 
-        expand="block" 
-        color="primary"
-        size="large"
-        (click)="goToGame()">
-        <ion-icon name="enter" slot="start"></ion-icon>
-        Vai alla Partita
+    <!-- Game Started State -->
+    <div *ngIf="currentSession?.status === 'IN_PROGRESS'" 
+         style="text-align: center; margin: 2rem 0; padding: 1.5rem; 
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+                border-radius: 15px; color: white;">
+      <h3 style="margin: 0 0 1rem 0; font-family: 'Trebuchet MS', Arial, sans-serif;">
+        🎮 Partita Iniziata!
+      </h3>
+      <ion-button expand="block" 
+                  color="light"
+                  size="large"
+                  (click)="goToGame()"
+                  style="--border-radius: 25px; height: 60px; font-weight: bold; 
+                         font-size: 1.1rem; --color: #667eea;">
+        <ion-icon name="enter-outline" slot="start"></ion-icon>
+        Entra nella Partita
       </ion-button>
     </div>
-  </ion-content>
+
+  </div>
+</ion-content>
+
+<style>
+  @keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+  }
+</style>

@@ -1,12 +1,10 @@
-
+import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { GameSession } from '../models/game-session.model';
 import { PlayerColor } from '../models/player.model';
 import { Transaction } from '../models/transaction.model';
 import { Property, PropertyOwnership } from '../models/property.model';
-import { Injectable } from '@angular/core';
-
 
 @Injectable({
   providedIn: 'root'
@@ -108,4 +106,3 @@ export class ApiService {
     return this.http.get<number>(`${this.baseUrl}/properties/${propertyId}/rent?diceRoll=${diceRoll}`);
   }
 }
-

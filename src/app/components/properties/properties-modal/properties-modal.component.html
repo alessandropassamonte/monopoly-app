@@ -1,113 +1,355 @@
 <ion-header>
-    <ion-toolbar>
-      <ion-title>Gestione Proprietà</ion-title>
-      <ion-buttons slot="end">
-        <ion-button (click)="dismiss()">
-          <ion-icon name="close"></ion-icon>
-        </ion-button>
-      </ion-buttons>
-    </ion-toolbar>
-  </ion-header>
+  <ion-toolbar style="--background: linear-gradient(135deg, #805ad5 0%, #6b46c1 100%); 
+                      --color: white;">
+    <ion-title style="font-family: 'Trebuchet MS', Arial, sans-serif; 
+                      font-weight: bold; display: flex; align-items: center; gap: 0.5rem;">
+      <ion-icon name="business" style="font-size: 1.3rem;"></ion-icon>
+      Gestione Proprietà
+    </ion-title>
+    <ion-buttons slot="end">
+      <ion-button (click)="dismiss()" style="--color: white;">
+        <ion-icon name="close"></ion-icon>
+      </ion-button>
+    </ion-buttons>
+  </ion-toolbar>
+</ion-header>
 
-  <ion-content>
-    <ion-segment [(ngModel)]="selectedSegment" (ionChange)="segmentChanged()">
-      <ion-segment-button value="available">
-        <ion-label>Disponibili</ion-label>
+<ion-content style="--background: linear-gradient(135deg, #f7fafc 0%, #edf2f7 100%);">
+  
+  <!-- Segment Selector -->
+  <div style="padding: 1rem; background: white; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);">
+    <ion-segment [(ngModel)]="selectedSegment" 
+                 (ionChange)="segmentChanged()"
+                 style="--background: #edf2f7; border-radius: 12px; overflow: hidden;">
+      <ion-segment-button value="available"
+                          style="--color: #4a5568; --color-checked: #805ad5; 
+                                 --indicator-color: #805ad5; font-weight: 600;">
+        <ion-label style="display: flex; align-items: center; gap: 0.5rem;">
+          <ion-icon name="storefront-outline"></ion-icon>
+          Disponibili
+        </ion-label>
       </ion-segment-button>
-      <ion-segment-button value="owned">
-        <ion-label>Possedute</ion-label>
+      <ion-segment-button value="owned"
+                          style="--color: #4a5568; --color-checked: #805ad5; 
+                                 --indicator-color: #805ad5; font-weight: 600;">
+        <ion-label style="display: flex; align-items: center; gap: 0.5rem;">
+          <ion-icon name="key-outline"></ion-icon>
+          Possedute
+        </ion-label>
       </ion-segment-button>
     </ion-segment>
+  </div>
+
+  <div style="padding: 1.5rem; max-width: 1200px; margin: 0 auto;">
 
     <!-- Available Properties -->
-    <div *ngIf="selectedSegment === 'available'" class="properties-section">
-      <div class="properties-grid">
-        <div 
-          *ngFor="let property of availableProperties" 
-          class="property-card available-property"
-          [ngClass]="gameService.getPropertyColorClass(property.colorGroup)">
-          <div class="property-header">
-            <h4>{{property.name}}</h4>
-            <div class="property-type">{{getPropertyTypeLabel(property.type)}}</div>
+    <div *ngIf="selectedSegment === 'available'">
+      <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1.5rem;">
+        <div style="width: 4px; height: 2rem; background: linear-gradient(135deg, #48bb78 0%, #38a169 100%); 
+                    border-radius: 2px;"></div>
+        <h3 style="font-family: 'Trebuchet MS', Arial, sans-serif; 
+                   color: #2d3748; margin: 0; font-size: 1.3rem; font-weight: bold;">
+          🏪 Proprietà Disponibili ({{availableProperties.length}})
+        </h3>
+      </div>
+
+      <!-- Empty State -->
+      <div *ngIf="availableProperties.length === 0" 
+           style="text-align: center; padding: 4rem 2rem; 
+                  background: white; border-radius: 20px; 
+                  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);">
+        <ion-icon name="storefront-outline" 
+                  style="font-size: 4rem; opacity: 0.3; margin-bottom: 1rem; 
+                         display: block; color: #4a5568;"></ion-icon>
+        <h4 style="margin: 0 0 0.5rem 0; font-size: 1.4rem; color: #2d3748;">Tutto venduto!</h4>
+        <p style="margin: 0; color: #4a5568;">Tutte le proprietà sono già state acquistate</p>
+      </div>
+
+      <!-- Properties Grid -->
+      <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); 
+                  gap: 1.5rem;" *ngIf="availableProperties.length > 0">
+        <div *ngFor="let property of availableProperties" 
+             [style]="'background: white; border-radius: 20px; padding: 1.5rem; 
+                      box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1); 
+                      border-top: 6px solid ' + getPropertyColorHex(property.colorGroup) + '; 
+                      transition: all 0.3s ease; position: relative; overflow: hidden;'"
+             onmouseover="this.style.transform='translateY(-8px)'; this.style.boxShadow='0 15px 40px rgba(0, 0, 0, 0.15)';"
+             onmouseout="this.style.transform='translateY(0px)'; this.style.boxShadow='0 8px 25px rgba(0, 0, 0, 0.1)';">
+          
+          <!-- Background Pattern -->
+          <div style="position: absolute; top: -30%; right: -20%; width: 120px; height: 120px; 
+                      background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%); 
+                      border-radius: 50%; pointer-events: none;"></div>
+          
+          <div style="position: relative; z-index: 1;">
+            <!-- Property Header -->
+            <div style="margin-bottom: 1.5rem;">
+              <div style="display: flex; align-items: start; justify-content: space-between; gap: 1rem;">
+                <h4 style="margin: 0 0 0.8rem 0; font-size: 1.2rem; font-weight: bold; 
+                           color: #2d3748; line-height: 1.3;">
+                  {{property.name}}
+                </h4>
+                <div [style]="'padding: 0.3rem 0.8rem; border-radius: 20px; font-size: 0.75rem; 
+                             font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px; 
+                             background: ' + getPropertyColorHex(property.colorGroup) + '; 
+                             color: white; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2); flex-shrink: 0;'">
+                  {{getPropertyTypeLabel(property.type)}}
+                </div>
+              </div>
+            </div>
+
+            <!-- Property Details -->
+            <div style="margin-bottom: 1.5rem;">
+              <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem;">
+                <div style="text-align: center; flex: 1;">
+                  <div style="font-size: 0.8rem; color: #4a5568; margin-bottom: 0.3rem; font-weight: 500;">PREZZO</div>
+                  <div style="font-size: 1.4rem; font-weight: bold; color: #38a169; 
+                             font-family: 'Courier New', monospace;">
+                    {{gameService.formatCurrency(property.price)}}
+                  </div>
+                </div>
+                <div style="width: 1px; height: 40px; background: #e2e8f0;"></div>
+                <div style="text-align: center; flex: 1;">
+                  <div style="font-size: 0.8rem; color: #4a5568; margin-bottom: 0.3rem; font-weight: 500;">AFFITTO</div>
+                  <div style="font-size: 1.1rem; font-weight: bold; color: #3182ce; 
+                             font-family: 'Courier New', monospace;">
+                    {{gameService.formatCurrency(property.rent)}}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Purchase Button -->
+            <button (click)="purchaseProperty(property)"
+                    style="width: 100%; background: linear-gradient(135deg, #48bb78 0%, #38a169 100%); 
+                           color: white; border: none; border-radius: 12px; padding: 1rem; 
+                           font-weight: bold; font-size: 1rem; cursor: pointer; 
+                           transition: all 0.3s ease; box-shadow: 0 4px 15px rgba(72, 187, 120, 0.3);"
+                    onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 20px rgba(72, 187, 120, 0.4)';"
+                    onmouseout="this.style.transform='translateY(0px)'; this.style.boxShadow='0 4px 15px rgba(72, 187, 120, 0.3)';">
+              <ion-icon name="card" style="margin-right: 0.5rem;"></ion-icon>
+              Acquista Proprietà
+            </button>
           </div>
-          <div class="property-details">
-            <div class="property-price">{{gameService.formatCurrency(property.price)}}</div>
-            <div class="property-rent">Affitto: {{gameService.formatCurrency(property.rent)}}</div>
-          </div>
-          <ion-button 
-            expand="block" 
-            size="small"
-            (click)="purchaseProperty(property)">
-            Acquista
-          </ion-button>
         </div>
       </div>
     </div>
 
-    <!-- Owned Properties by Player -->
-    <div *ngIf="selectedSegment === 'owned'" class="properties-section">
-      <ion-item>
-        <ion-label>Seleziona Giocatore</ion-label>
-        <ion-select [(ngModel)]="selectedPlayerId" (ionChange)="loadPlayerProperties()">
-          <ion-select-option 
-            *ngFor="let player of players" 
-            [value]="player.id">
-            {{player.name}}
-          </ion-select-option>
-        </ion-select>
-      </ion-item>
+    <!-- Owned Properties -->
+    <div *ngIf="selectedSegment === 'owned'">
+      <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1.5rem;">
+        <div style="width: 4px; height: 2rem; background: linear-gradient(135deg, #3182ce 0%, #2c5aa0 100%); 
+                    border-radius: 2px;"></div>
+        <h3 style="font-family: 'Trebuchet MS', Arial, sans-serif; 
+                   color: #2d3748; margin: 0; font-size: 1.3rem; font-weight: bold;">
+          🔑 Proprietà Possedute
+        </h3>
+      </div>
 
-      <div *ngIf="selectedPlayerId" class="properties-grid">
-        <div 
-          *ngFor="let ownership of playerProperties" 
-          class="property-card owned-property"
-          [ngClass]="gameService.getPropertyColorClass(ownership.colorGroup)">
-          <div class="property-header">
-            <h4>{{ownership.propertyName}}</h4>
-            <div class="property-status">
-              <span *ngIf="ownership.isMortgaged" class="mortgaged">Ipotecata</span>
-              <span *ngIf="ownership.hasHotel" class="hotel">🏨</span>
-              <span *ngIf="ownership.houses > 0" class="houses">
-                <span *ngFor="let house of getHousesArray(ownership.houses)">🏠</span>
-              </span>
+      <!-- Player Selector -->
+      <div style="background: white; border-radius: 15px; padding: 1.5rem; 
+                  margin-bottom: 1.5rem; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);">
+        <div style="display: flex; align-items: center; gap: 1rem;">
+          <ion-icon name="person-outline" style="font-size: 1.5rem; color: #3182ce;"></ion-icon>
+          <div style="flex: 1;">
+            <label style="font-size: 0.9rem; color: #4a5568; margin-bottom: 0.5rem; 
+                          display: block; font-weight: 600;">Seleziona Giocatore</label>
+            <select [(ngModel)]="selectedPlayerId" 
+                    (ngModelChange)="loadPlayerProperties()"
+                    style="width: 100%; padding: 0.8rem 1rem; border: 2px solid #e2e8f0; 
+                           border-radius: 10px; font-size: 1rem; background: #f7fafc; 
+                           color: #2d3748; cursor: pointer; transition: all 0.2s ease;"
+                    onfocus="this.style.borderColor='#3182ce'; this.style.background='white';"
+                    onblur="this.style.borderColor='#e2e8f0'; this.style.background='#f7fafc';">
+              <option value="" disabled>Scegli un giocatore...</option>
+              <option *ngFor="let player of players" [value]="player.id">
+                {{player.name}} ({{gameService.formatCurrency(player.balance)}})
+              </option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- Empty State for Player Properties -->
+      <div *ngIf="selectedPlayerId && playerProperties.length === 0" 
+           style="text-align: center; padding: 4rem 2rem; 
+                  background: white; border-radius: 20px; 
+                  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);">
+        <ion-icon name="home-outline" 
+                  style="font-size: 4rem; opacity: 0.3; margin-bottom: 1rem; 
+                         display: block; color: #4a5568;"></ion-icon>
+        <h4 style="margin: 0 0 0.5rem 0; font-size: 1.4rem; color: #2d3748;">Nessuna proprietà</h4>
+        <p style="margin: 0; color: #4a5568;">Questo giocatore non possiede ancora proprietà</p>
+      </div>
+
+      <!-- Player Properties Grid -->
+      <div *ngIf="selectedPlayerId && playerProperties.length > 0" 
+           style="display: grid; grid-template-columns: repeat(auto-fill, minmax(350px, 1fr)); 
+                  gap: 1.5rem;">
+        <div *ngFor="let ownership of playerProperties" 
+             [style]="'background: white; border-radius: 20px; padding: 1.5rem; 
+                      box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1); 
+                      border-top: 6px solid ' + getPropertyColorHex(ownership.colorGroup) + '; 
+                      transition: all 0.3s ease; position: relative; overflow: hidden;' +
+                      (ownership.isMortgaged ? ' opacity: 0.7; filter: grayscale(0.3);' : '')"
+             onmouseover="this.style.transform='translateY(-5px)'; this.style.boxShadow='0 12px 35px rgba(0, 0, 0, 0.15)';"
+             onmouseout="this.style.transform='translateY(0px)'; this.style.boxShadow='0 8px 25px rgba(0, 0, 0, 0.1)';">
+          
+          <!-- Background Pattern -->
+          <div style="position: absolute; top: -30%; right: -20%; width: 120px; height: 120px; 
+                      background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%); 
+                      border-radius: 50%; pointer-events: none;"></div>
+
+          <div style="position: relative; z-index: 1;">
+            <!-- Property Header with Status -->
+            <div style="margin-bottom: 1.5rem;">
+              <div style="display: flex; align-items: start; justify-content: space-between; gap: 1rem; margin-bottom: 1rem;">
+                <h4 style="margin: 0; font-size: 1.2rem; font-weight: bold; 
+                           color: #2d3748; line-height: 1.3; flex: 1;">
+                  {{ownership.propertyName}}
+                </h4>
+                
+                <!-- Status Indicators -->
+                <div style="display: flex; flex-direction: column; gap: 0.5rem; align-items: end;">
+                  <span *ngIf="ownership.isMortgaged" 
+                        style="background: linear-gradient(135deg, #e53e3e 0%, #c53030 100%); 
+                               color: white; padding: 0.3rem 0.8rem; border-radius: 15px; 
+                               font-size: 0.7rem; font-weight: bold; text-transform: uppercase; 
+                               box-shadow: 0 2px 8px rgba(229, 62, 62, 0.3);">
+                    🔒 IPOTECATA
+                  </span>
+                  
+                  <div *ngIf="!ownership.isMortgaged" style="display: flex; align-items: center; gap: 0.3rem;">
+                    <span *ngIf="ownership.hasHotel" 
+                          style="background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%); 
+                                 color: white; padding: 0.3rem 0.8rem; border-radius: 15px; 
+                                 font-size: 0.8rem; font-weight: bold; 
+                                 box-shadow: 0 2px 8px rgba(251, 191, 36, 0.3);">
+                      🏨 HOTEL
+                    </span>
+                    
+                    <div *ngIf="ownership.houses > 0 && !ownership.hasHotel" 
+                         style="background: linear-gradient(135deg, #38a169 0%, #2f855a 100%); 
+                                color: white; padding: 0.3rem 0.8rem; border-radius: 15px; 
+                                font-size: 0.8rem; font-weight: bold; display: flex; align-items: center; gap: 0.3rem;
+                                box-shadow: 0 2px 8px rgba(56, 161, 105, 0.3);">
+                      <span *ngFor="let house of getHousesArray(ownership.houses)" style="font-size: 0.9rem;">🏠</span>
+                      {{ownership.houses}} CASE
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Property Details -->
+            <div style="margin-bottom: 1.5rem;">
+              <div style="display: flex; align-items: center; gap: 1rem;">
+                <div style="text-align: center; flex: 1; 
+                           padding: 1rem; background: #f7fafc; border-radius: 12px;">
+                  <div style="font-size: 0.8rem; color: #4a5568; margin-bottom: 0.3rem; font-weight: 500;">AFFITTO ATTUALE</div>
+                  <div style="font-size: 1.3rem; font-weight: bold; color: #3182ce; 
+                             font-family: 'Courier New', monospace;">
+                    {{gameService.formatCurrency(ownership.currentRent)}}
+                  </div>
+                </div>
+                <div style="text-align: center; flex: 1; 
+                           padding: 1rem; background: #f7fafc; border-radius: 12px;">
+                  <div style="font-size: 0.8rem; color: #4a5568; margin-bottom: 0.3rem; font-weight: 500;">VALORE</div>
+                  <div style="font-size: 1.1rem; font-weight: bold; color: #4a5568; 
+                             font-family: 'Courier New', monospace;">
+                    {{gameService.formatCurrency(ownership.propertyPrice)}}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); 
+                        gap: 0.8rem;">
+              
+              <!-- Build House -->
+              <button *ngIf="!ownership.isMortgaged && !ownership.hasHotel && ownership.houses < 4"
+                      (click)="buildHouse(ownership)"
+                      style="background: linear-gradient(135deg, #48bb78 0%, #38a169 100%); 
+                             color: white; border: none; border-radius: 10px; padding: 0.8rem; 
+                             font-weight: 600; font-size: 0.9rem; cursor: pointer; 
+                             transition: all 0.2s ease; display: flex; align-items: center; 
+                             justify-content: center; gap: 0.3rem;"
+                      onmouseover="this.style.transform='translateY(-2px)'"
+                      onmouseout="this.style.transform='translateY(0px)'">
+                🏠 Casa
+              </button>
+              
+              <!-- Build Hotel -->
+              <button *ngIf="ownership.houses === 4 && !ownership.hasHotel"
+                      (click)="buildHotel(ownership)"
+                      style="background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%); 
+                             color: white; border: none; border-radius: 10px; padding: 0.8rem; 
+                             font-weight: 600; font-size: 0.9rem; cursor: pointer; 
+                             transition: all 0.2s ease; display: flex; align-items: center; 
+                             justify-content: center; gap: 0.3rem;"
+                      onmouseover="this.style.transform='translateY(-2px)'"
+                      onmouseout="this.style.transform='translateY(0px)'">
+                🏨 Hotel
+              </button>
+              
+              <!-- Mortgage -->
+              <button *ngIf="!ownership.isMortgaged && ownership.houses === 0 && !ownership.hasHotel"
+                      (click)="mortgageProperty(ownership)"
+                      style="background: linear-gradient(135deg, #ed8936 0%, #dd6b20 100%); 
+                             color: white; border: none; border-radius: 10px; padding: 0.8rem; 
+                             font-weight: 600; font-size: 0.9rem; cursor: pointer; 
+                             transition: all 0.2s ease; display: flex; align-items: center; 
+                             justify-content: center; gap: 0.3rem;"
+                      onmouseover="this.style.transform='translateY(-2px)'"
+                      onmouseout="this.style.transform='translateY(0px)'">
+                🔒 Ipoteca
+              </button>
+              
+              <!-- Redeem -->
+              <button *ngIf="ownership.isMortgaged"
+                      (click)="redeemProperty(ownership)"
+                      style="background: linear-gradient(135deg, #38a169 0%, #2f855a 100%); 
+                             color: white; border: none; border-radius: 10px; padding: 0.8rem; 
+                             font-weight: 600; font-size: 0.9rem; cursor: pointer; 
+                             transition: all 0.2s ease; display: flex; align-items: center; 
+                             justify-content: center; gap: 0.3rem;"
+                      onmouseover="this.style.transform='translateY(-2px)'"
+                      onmouseout="this.style.transform='translateY(0px)'">
+                🔓 Riscatta
+              </button>
             </div>
           </div>
-          <div class="property-details">
-            <div class="property-rent">Affitto: {{gameService.formatCurrency(ownership.currentRent)}}</div>
-          </div>
-          <div class="property-actions">
-            <ion-button 
-              *ngIf="!ownership.isMortgaged && !ownership.hasHotel && ownership.houses < 4"
-              size="small" 
-              fill="outline"
-              (click)="buildHouse(ownership)">
-              🏠 Casa
-            </ion-button>
-            <ion-button 
-              *ngIf="ownership.houses === 4 && !ownership.hasHotel"
-              size="small" 
-              fill="outline"
-              (click)="buildHotel(ownership)">
-              🏨 Hotel
-            </ion-button>
-            <ion-button 
-              *ngIf="!ownership.isMortgaged"
-              size="small" 
-              fill="outline" 
-              color="warning"
-              (click)="mortgageProperty(ownership)">
-              Ipoteca
-            </ion-button>
-            <ion-button 
-              *ngIf="ownership.isMortgaged"
-              size="small" 
-              fill="outline" 
-              color="success"
-              (click)="redeemProperty(ownership)">
-              Riscatta
-            </ion-button>
-          </div>
         </div>
       </div>
     </div>
-  </ion-content>
+
+  </div>
+</ion-content>
+
+<style>
+  @media (max-width: 768px) {
+    .properties-grid {
+      grid-template-columns: 1fr !important;
+    }
+    
+    .property-actions {
+      grid-template-columns: 1fr 1fr !important;
+    }
+  }
+
+  @media (max-width: 480px) {
+    .property-card {
+      padding: 1rem !important;
+    }
+    
+    .property-details {
+      flex-direction: column !important;
+      gap: 1rem !important;
+    }
+    
+    .property-actions {
+      grid-template-columns: 1fr !important;
+    }
+  }
+</style>

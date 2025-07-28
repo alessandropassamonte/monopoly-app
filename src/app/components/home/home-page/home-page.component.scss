@@ -1,0 +1,117 @@
+/* Home Page Styles */
+.home-content {
+  --background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.hero-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 2rem 1rem;
+  min-height: 100vh;
+}
+
+.logo-container {
+  margin-bottom: 3rem;
+}
+
+.monopoly-logo {
+  text-align: center;
+  color: white;
+  
+  .logo-icon {
+    font-size: 4rem;
+    margin-bottom: 1rem;
+    display: block;
+  }
+  
+  h1 {
+    font-family: 'Trebuchet MS', Arial, sans-serif;
+    font-size: 3rem;
+    font-weight: bold;
+    margin: 0;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+    letter-spacing: 2px;
+  }
+  
+  p {
+    font-size: 1.2rem;
+    opacity: 0.9;
+    margin: 0.5rem 0 0 0;
+    letter-spacing: 1px;
+  }
+}
+
+.action-cards {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+  width: 100%;
+  max-width: 400px;
+}
+
+.action-card {
+  background: white;
+  border-radius: 20px;
+  padding: 2rem 1rem;
+  text-align: center;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+  cursor: pointer;
+  transition: all 0.3s ease;
+  border: 3px solid transparent;
+  
+  &:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 15px 40px rgba(0, 0, 0, 0.3);
+  }
+  
+  .card-icon {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+  }
+  
+  h3 {
+    font-family: 'Trebuchet MS', Arial, sans-serif;
+    font-size: 1.3rem;
+    font-weight: bold;
+    margin: 0 0 0.5rem 0;
+  }
+  
+  p {
+    font-size: 0.9rem;
+    color: var(--text-secondary, #4a5568);
+    margin: 0;
+    line-height: 1.4;
+  }
+}
+
+.create-card {
+  .card-icon {
+    color: var(--monopoly-green, #38a169);
+  }
+  
+  &:hover {
+    border-color: var(--monopoly-green, #38a169);
+  }
+}
+
+.join-card {
+  .card-icon {
+    color: var(--monopoly-blue, #3182ce);
+  }
+  
+  &:hover {
+    border-color: var(--monopoly-blue, #3182ce);
+  }
+}
+
+@media (max-width: 480px) {
+  .action-cards {
+    grid-template-columns: 1fr;
+    max-width: 300px;
+  }
+  
+  .monopoly-logo h1 {
+    font-size: 2.5rem;
+  }
+}

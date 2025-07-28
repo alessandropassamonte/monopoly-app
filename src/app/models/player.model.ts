@@ -3,7 +3,7 @@ export interface Player {
     name: string;
     balance: number;
     color: PlayerColor;
-    isHost: boolean;
+    host: boolean;
     propertiesCount: number;
   }
   

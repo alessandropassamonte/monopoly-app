@@ -1,583 +1,80 @@
-/* variables.scss - Monopoly Color Theme */
+/* Variables - Monopoly Color Theme */
 :root {
-    /* Monopoly Primary Colors */
-    --monopoly-red: #e53e3e;
-    --monopoly-green: #38a169;
-    --monopoly-blue: #3182ce;
-    --monopoly-yellow: #d69e2e;
-    --monopoly-black: #2d3748;
-    --monopoly-white: #ffffff;
-  
-    /* Property Colors */
-    --property-brown: #8b4513;
-    --property-light-blue: #87ceeb;
-    --property-pink: #ff69b4;
-    --property-orange: #ff8c00;
-    --property-red: #dc143c;
-    --property-yellow: #ffd700;
-    --property-green: #228b22;
-    --property-dark-blue: #191970;
-  
-    /* UI Colors */
-    --background-primary: #f7fafc;
-    --background-secondary: #edf2f7;
-    --card-background: #ffffff;
-    --text-primary: #2d3748;
-    --text-secondary: #4a5568;
-    --border-color: #e2e8f0;
-    --shadow-color: rgba(0, 0, 0, 0.1);
-  
-    /* Gradients */
-    --gradient-primary: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    --gradient-success: linear-gradient(135deg, #48bb78 0%, #38a169 100%);
-    --gradient-warning: linear-gradient(135deg, #ed8936 0%, #dd6b20 100%);
-  }
-  
-  /* global.scss - Global Styles */
-  * {
-    box-sizing: border-box;
-  }
-  
-  ion-content {
-    --background: var(--background-primary);
-  }
-  
-  ion-toolbar {
-    --background: var(--gradient-primary);
-    --color: white;
-  }
-  
-  .monopoly-title {
-    font-family: 'Trebuchet MS', Arial, sans-serif;
-    font-weight: bold;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-  
-  .title-icon {
-    font-size: 1.4em;
-  }
-  
-  /* Player Color Classes */
-  .player-red { --player-color: var(--monopoly-red); }
-  .player-blue { --player-color: var(--monopoly-blue); }
-  .player-green { --player-color: var(--monopoly-green); }
-  .player-yellow { --player-color: var(--monopoly-yellow); }
-  .player-purple { --player-color: #805ad5; }
-  .player-orange { --player-color: #ff8c00; }
-  .player-black { --player-color: var(--monopoly-black); }
-  .player-white { --player-color: #f7fafc; border: 2px solid #e2e8f0; }
-  
-  /* Property Color Classes */
-  .property-brown { --property-color: var(--property-brown); }
-  .property-light-blue { --property-color: var(--property-light-blue); }
-  .property-pink { --property-color: var(--property-pink); }
-  .property-orange { --property-color: var(--property-orange); }
-  .property-red { --property-color: var(--property-red); }
-  .property-yellow { --property-color: var(--property-yellow); }
-  .property-green { --property-color: var(--property-green); }
-  .property-dark-blue { --property-color: var(--property-dark-blue); }
-  
-  /* home.page.scss - Home Page Styles */
-  .home-content {
-    --background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  }
-  
-  .hero-section {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    padding: 2rem 1rem;
-    min-height: 100vh;
-  }
-  
-  .logo-container {
-    margin-bottom: 3rem;
-  }
-  
-  .monopoly-logo {
-    text-align: center;
-    color: white;
-    
-    .logo-icon {
-      font-size: 4rem;
-      margin-bottom: 1rem;
-      display: block;
-    }
-    
-    h1 {
-      font-family: 'Trebuchet MS', Arial, sans-serif;
-      font-size: 3rem;
-      font-weight: bold;
-      margin: 0;
-      text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
-      letter-spacing: 2px;
-    }
-    
-    p {
-      font-size: 1.2rem;
-      opacity: 0.9;
-      margin: 0.5rem 0 0 0;
-      letter-spacing: 1px;
-    }
-  }
-  
-  .action-cards {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 1.5rem;
-    width: 100%;
-    max-width: 400px;
-  }
-  
-  .action-card {
-    background: white;
-    border-radius: 20px;
-    padding: 2rem 1rem;
-    text-align: center;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
-    cursor: pointer;
-    transition: all 0.3s ease;
-    border: 3px solid transparent;
-    
-    &:hover {
-      transform: translateY(-5px);
-      box-shadow: 0 15px 40px rgba(0, 0, 0, 0.3);
-    }
-    
-    .card-icon {
-      font-size: 3rem;
-      margin-bottom: 1rem;
-    }
-    
-    h3 {
-      font-family: 'Trebuchet MS', Arial, sans-serif;
-      font-size: 1.3rem;
-      font-weight: bold;
-      margin: 0 0 0.5rem 0;
-    }
-    
-    p {
-      font-size: 0.9rem;
-      color: var(--text-secondary);
-      margin: 0;
-      line-height: 1.4;
-    }
-  }
-  
-  .create-card {
-    .card-icon {
-      color: var(--monopoly-green);
-    }
-    
-    &:hover {
-      border-color: var(--monopoly-green);
-    }
-  }
-  
-  .join-card {
-    .card-icon {
-      color: var(--monopoly-blue);
-    }
-    
-    &:hover {
-      border-color: var(--monopoly-blue);
-    }
-  }
-  
-  @media (max-width: 480px) {
-    .action-cards {
-      grid-template-columns: 1fr;
-      max-width: 300px;
-    }
-    
-    .monopoly-logo h1 {
-      font-size: 2.5rem;
-    }
-  }
-  
-  /* lobby.page.scss - Lobby Page Styles */
-  .lobby-content {
-    padding: 1rem;
-  }
-  
-  .session-info {
-    margin-bottom: 2rem;
-  }
-  
-  .session-card {
-    background: white;
-    border-radius: 15px;
-    padding: 1.5rem;
-    text-align: center;
-    box-shadow: 0 4px 20px var(--shadow-color);
-    border-left: 5px solid var(--monopoly-green);
-    
-    h2 {
-      font-family: 'Trebuchet MS', Arial, sans-serif;
-      color: var(--text-primary);
-      margin: 0 0 1rem 0;
-      font-size: 1.4rem;
-    }
-    
-    .session-code {
-      font-size: 2.5rem;
-      font-weight: bold;
-      color: var(--monopoly-green);
-      font-family: 'Courier New', monospace;
-      letter-spacing: 0.2em;
-      margin: 1rem 0;
-      padding: 0.5rem;
-      background: var(--background-secondary);
-      border-radius: 10px;
-      border: 2px dashed var(--monopoly-green);
-    }
-    
-    p {
-      color: var(--text-secondary);
-      margin: 0.5rem 0;
-      font-size: 1rem;
-    }
-  }
-  
-  .players-section {
-    margin-bottom: 2rem;
-    
-    h3 {
-      font-family: 'Trebuchet MS', Arial, sans-serif;
-      color: var(--text-primary);
-      margin: 0 0 1rem 0;
-      padding: 0 0.5rem;
-    }
-  }
-  
-  .players-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-    gap: 1rem;
-  }
-  
-  .player-card {
-    background: white;
-    border-radius: 12px;
-    padding: 1rem;
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-    box-shadow: 0 2px 10px var(--shadow-color);
-    border-left: 4px solid var(--player-color, #ccc);
-    transition: transform 0.2s ease;
-    
-    &:hover {
-      transform: translateY(-2px);
-    }
-  }
-  
-  .player-avatar {
-    width: 50px;
-    height: 50px;
-    border-radius: 50%;
-    background: var(--player-color, #ccc);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    
-    .avatar-icon {
-      color: white;
-      font-size: 1.5rem;
-    }
-  }
-  
-  .player-info {
-    flex: 1;
-    
-    h4 {
-      margin: 0 0 0.25rem 0;
-      font-size: 1.1rem;
-      color: var(--text-primary);
-    }
-    
-    .player-role {
-      font-size: 0.8rem;
-      color: var(--monopoly-yellow);
-      display: block;
-      margin-bottom: 0.25rem;
-    }
-    
-    .player-balance {
-      font-weight: bold;
-      color: var(--monopoly-green);
-      font-size: 1rem;
-    }
-  }
-  
-  .action-section {
-    margin: 2rem 0;
-    text-align: center;
-  }
-  
-  .start-button {
-    --background: var(--gradient-success);
-    --border-radius: 25px;
-    height: 60px;
-    font-weight: bold;
-    font-size: 1.1rem;
-    margin: 1rem 0;
-  }
-  
-  .waiting-message {
-    padding: 2rem 1rem;
-    
-    .waiting-icon {
-      font-size: 3rem;
-      color: var(--monopoly-yellow);
-      animation: spin 2s linear infinite;
-    }
-    
-    p {
-      margin: 1rem 0 0.5rem 0;
-      color: var(--text-primary);
-      font-size: 1.1rem;
-      
-      &.hint {
-        font-size: 0.9rem;
-        color: var(--text-secondary);
-        margin: 0;
-      }
-    }
-  }
-  
-  .game-started {
-    text-align: center;
-    margin: 2rem 0;
-    
-    ion-button {
-      --background: var(--gradient-primary);
-      --border-radius: 25px;
-      height: 60px;
-      font-weight: bold;
-      font-size: 1.1rem;
-    }
-  }
-  
-  @keyframes spin {
-    from { transform: rotate(0deg); }
-    to { transform: rotate(360deg); }
-  }
-  
-  /* game.page.scss - Game Page Styles */
-  .game-content {
-    padding: 1rem;
-  }
-  
-  .players-overview {
-    margin-bottom: 2rem;
-    
-    h3 {
-      font-family: 'Trebuchet MS', Arial, sans-serif;
-      color: var(--text-primary);
-      margin: 0 0 1rem 0;
-      padding: 0 0.5rem;
-    }
-  }
-  
-  .players-balance-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 1rem;
-  }
-  
-  .balance-card {
-    background: white;
-    border-radius: 12px;
-    padding: 1rem;
-    text-align: center;
-    box-shadow: 0 3px 15px var(--shadow-color);
-    border-top: 4px solid var(--player-color, #ccc);
-    cursor: pointer;
-    transition: all 0.3s ease;
-    
-    &:hover {
-      transform: translateY(-3px);
-      box-shadow: 0 5px 25px var(--shadow-color);
-    }
-  }
-  
-  .player-header {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.5rem;
-    margin-bottom: 0.5rem;
-    
-    .player-name {
-      font-weight: bold;
-      color: var(--text-primary);
-      font-size: 1rem;
-    }
-    
-    .host-icon {
-      color: var(--monopoly-yellow);
-      font-size: 1.1rem;
-    }
-  }
-  
-  .player-balance {
-    font-size: 1.3rem;
-    font-weight: bold;
-    color: var(--monopoly-green);
-    margin: 0.5rem 0;
-    font-family: 'Courier New', monospace;
-  }
-  
-  .player-properties {
-    font-size: 0.85rem;
-    color: var(--text-secondary);
-  }
-  
-  .quick-actions {
-    margin-bottom: 2rem;
-    
-    h3 {
-      font-family: 'Trebuchet MS', Arial, sans-serif;
-      color: var(--text-primary);
-      margin: 0 0 1rem 0;
-      padding: 0 0.5rem;
-    }
-  }
-  
-  .action-buttons {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-    gap: 1rem;
-    
-    ion-button {
-      height: 50px;
-      --border-radius: 12px;
-      --border-width: 2px;
-      font-weight: 500;
-      
-      &[color="primary"] {
-        --border-color: var(--monopoly-blue);
-        --color: var(--monopoly-blue);
-      }
-      
-      &[color="success"] {
-        --border-color: var(--monopoly-green);
-        --color: var(--monopoly-green);
-      }
-      
-      &[color="warning"] {
-        --border-color: var(--monopoly-yellow);
-        --color: var(--monopoly-yellow);
-      }
-      
-      &[color="tertiary"] {
-        --border-color: #805ad5;
-        --color: #805ad5;
-      }
-    }
-  }
-  
-  .transactions-section {
-    h3 {
-      font-family: 'Trebuchet MS', Arial, sans-serif;
-      color: var(--text-primary);
-      margin: 0;
-    }
-  }
-  
-  .section-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 1rem;
-    padding: 0 0.5rem;
-  }
-  
-  .transactions-list {
-    background: white;
-    border-radius: 12px;
-    overflow: hidden;
-    box-shadow: 0 2px 10px var(--shadow-color);
-  }
-  
-  .transaction-item {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 1rem;
-    border-bottom: 1px solid var(--border-color);
-    
-    &:last-child {
-      border-bottom: none;
-    }
-    
-    &.transaction-player-to-player {
-      border-left: 4px solid var(--monopoly-blue);
-    }
-    
-    &.transaction-player-to-bank {
-      border-left: 4px solid var(--monopoly-red);
-    }
-    
-    &.transaction-bank-to-player {
-      border-left: 4px solid var(--monopoly-green);
-    }
-  }
-  
-  .transaction-info {
-    flex: 1;
-    
-    .transaction-description {
-      font-weight: 500;
-      color: var(--text-primary);
-      margin-bottom: 0.25rem;
-    }
-    
-    .transaction-players {
-      font-size: 0.85rem;
-      color: var(--text-secondary);
-      margin-bottom: 0.25rem;
-    }
-    
-    .transaction-time {
-      font-size: 0.75rem;
-      color: var(--text-secondary);
-    }
-  }
-  
-  .transaction-amount {
-    font-weight: bold;
-    font-family: 'Courier New', monospace;
-    font-size: 1rem;
-    
-    &.amount-positive {
-      color: var(--monopoly-green);
-    }
-    
-    &.amount-negative {
-      color: var(--monopoly-red);
-    }
-    
-    &.amount-neutral {
-      color: var(--text-primary);
-    }
-  }
-  
-  @media (max-width: 768px) {
-    .players-balance-grid {
-      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-    }
-    
-    .action-buttons {
-      grid-template-columns: 1fr;
-    }
-    
-    .balance-card {
-      .player-balance {
-        font-size: 1.1rem;
-      }
-    }
-  }
+  /* Monopoly Primary Colors */
+  --monopoly-red: #e53e3e;
+  --monopoly-green: #38a169;
+  --monopoly-blue: #3182ce;
+  --monopoly-yellow: #d69e2e;
+  --monopoly-black: #2d3748;
+  --monopoly-white: #ffffff;
+
+  /* Property Colors */
+  --property-brown: #8b4513;
+  --property-light-blue: #87ceeb;
+  --property-pink: #ff69b4;
+  --property-orange: #ff8c00;
+  --property-red: #dc143c;
+  --property-yellow: #ffd700;
+  --property-green: #228b22;
+  --property-dark-blue: #191970;
+
+  /* UI Colors */
+  --background-primary: #f7fafc;
+  --background-secondary: #edf2f7;
+  --card-background: #ffffff;
+  --text-primary: #2d3748;
+  --text-secondary: #4a5568;
+  --border-color: #e2e8f0;
+  --shadow-color: rgba(0, 0, 0, 0.1);
+
+  /* Gradients */
+  --gradient-primary: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  --gradient-success: linear-gradient(135deg, #48bb78 0%, #38a169 100%);
+  --gradient-warning: linear-gradient(135deg, #ed8936 0%, #dd6b20 100%);
+}
+
+/* Global Styles */
+* {
+  box-sizing: border-box;
+}
+
+ion-content {
+  --background: var(--background-primary);
+}
+
+ion-toolbar {
+  --background: var(--gradient-primary);
+  --color: white;
+}
+
+.monopoly-title {
+  font-family: 'Trebuchet MS', Arial, sans-serif;
+  font-weight: bold;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.title-icon {
+  font-size: 1.4em;
+}
+
+/* Player Color Classes */
+.player-red { --player-color: var(--monopoly-red); }
+.player-blue { --player-color: var(--monopoly-blue); }
+.player-green { --player-color: var(--monopoly-green); }
+.player-yellow { --player-color: var(--monopoly-yellow); }
+.player-purple { --player-color: #805ad5; }
+.player-orange { --player-color: #ff8c00; }
+.player-black { --player-color: var(--monopoly-black); }
+.player-white { --player-color: #f7fafc; border: 2px solid #e2e8f0; }
+
+/* Property Color Classes */
+.property-brown { --property-color: var(--property-brown); }
+.property-light-blue { --property-color: var(--property-light-blue); }
+.property-pink { --property-color: var(--property-pink); }
+.property-orange { --property-color: var(--property-orange); }
+.property-red { --property-color: var(--property-red); }
+.property-yellow { --property-color: var(--property-yellow); }
+.property-green { --property-color: var(--property-green); }
+.property-dark-blue { --property-color: var(--property-dark-blue); }

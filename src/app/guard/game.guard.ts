@@ -1,10 +1,11 @@
 import { Injectable } from '@angular/core';
 import { CanActivate, ActivatedRouteSnapshot, RouterStateSnapshot, Router } from '@angular/router';
 import { Observable, of } from 'rxjs';
-import { map, catchError } from 'rxjs/operators';
+import { map, catchError, take } from 'rxjs/operators';
 import { GameService } from '../services/game.service';
 import { ApiService } from '../services/api.service';
 import { NotificationService } from '../services/notification.service';
+import { firstValueFrom } from 'rxjs';
 
 @Injectable({
   providedIn: 'root'
@@ -18,10 +19,10 @@ export class GameGuard implements CanActivate {
     private notificationService: NotificationService
   ) {}
 
-  canActivate(
+  async canActivate(
     route: ActivatedRouteSnapshot,
     state: RouterStateSnapshot
-  ): Observable<boolean> | Promise<boolean> | boolean {
+  ): Promise<boolean> {
     
     const sessionCode = route.paramMap.get('sessionCode');
     
@@ -30,53 +31,49 @@ export class GameGuard implements CanActivate {
       return false;
     }
 
-    // Check if we have current session and player data
-    return new Observable<boolean>(observer => {
-      this.gameService.getCurrentSession().subscribe(currentSession => {
-        this.gameService.getCurrentPlayer().subscribe(currentPlayer => {
-          
-          // If we have session and player data, verify they match the route
-          if (currentSession && currentPlayer) {
-            if (currentSession.sessionCode === sessionCode) {
-              observer.next(true);
-              observer.complete();
-              return;
-            }
-          }
+    try {
+      // Usa firstValueFrom con take(1) per evitare subscription infinite
+      const currentSession = await firstValueFrom(
+        this.gameService.getCurrentSession().pipe(take(1))
+      );
+      const currentPlayer = await firstValueFrom(
+        this.gameService.getCurrentPlayer().pipe(take(1))
+      );
 
-          // Otherwise, try to load session from API
-          this.apiService.getSession(sessionCode).pipe(
-            map(session => {
-              if (session) {
-                // Session exists, but we need to check if current user is part of it
-                if (currentPlayer) {
-                  const playerInSession = session.players.find(p => p.id === currentPlayer.id);
-                  if (playerInSession) {
-                    this.gameService.setCurrentSession(session);
-                    return true;
-                  }
-                }
-                
-                // User not part of this session, redirect to home
-                this.redirectToHome('Non fai parte di questa sessione');
-                return false;
-              } else {
-                this.redirectToHome('Sessione non trovata');
-                return false;
-              }
-            }),
-            catchError(error => {
-              console.error('Error loading session:', error);
-              this.redirectToHome('Errore nel caricamento della sessione');
-              return of(false);
-            })
-          ).subscribe(result => {
-            observer.next(result);
-            observer.complete();
-          });
-        });
-      });
-    });
+      // Se abbiamo sessione e player che corrispondono alla route
+      if (currentSession && currentPlayer && currentSession.sessionCode === sessionCode) {
+        const playerInSession = currentSession.players.find(p => p.id === currentPlayer.id);
+        if (playerInSession) {
+          return true;
+        }
+      }
+
+      // Altrimenti prova a caricare la sessione dal server
+      const session = await firstValueFrom(this.apiService.getSession(sessionCode));
+      
+      if (!session) {
+        this.redirectToHome('Sessione non trovata');
+        return false;
+      }
+
+      // Verifica se il current player è parte di questa sessione
+      if (currentPlayer) {
+        const playerInSession = session.players.find(p => p.id === currentPlayer.id);
+        if (playerInSession) {
+          this.gameService.setCurrentSession(session);
+          return true;
+        }
+      }
+      
+      // Player non fa parte di questa sessione
+      this.redirectToHome('Non fai parte di questa sessione');
+      return false;
+      
+    } catch (error) {
+      console.error('Error in game guard:', error);
+      this.redirectToHome('Errore nel caricamento della sessione');
+      return false;
+    }
   }
 
   private redirectToHome(message: string) {
@@ -97,10 +94,10 @@ export class LobbyGuard implements CanActivate {
     private notificationService: NotificationService
   ) {}
 
-  canActivate(
+  async canActivate(
     route: ActivatedRouteSnapshot,
     state: RouterStateSnapshot
-  ): Observable<boolean> | Promise<boolean> | boolean {
+  ): Promise<boolean> {
     
     const sessionCode = route.paramMap.get('sessionCode');
     
@@ -109,29 +106,31 @@ export class LobbyGuard implements CanActivate {
       return false;
     }
 
-    return this.apiService.getSession(sessionCode).pipe(
-      map(session => {
-        if (session) {
-          this.gameService.setCurrentSession(session);
-          
-          // If game is in progress, redirect to game page
-          if (session.status === 'IN_PROGRESS') {
-            this.router.navigate(['/game', sessionCode]);
-            return false;
-          }
-          
-          return true;
-        } else {
-          this.redirectToHome('Sessione non trovata');
-          return false;
-        }
-      }),
-      catchError(error => {
-        console.error('Error in lobby guard:', error);
-        this.redirectToHome('Errore nel caricamento della sessione');
-        return of(false);
-      })
-    );
+    try {
+      const session = await firstValueFrom(this.apiService.getSession(sessionCode));
+      
+      if (!session) {
+        this.redirectToHome('Sessione non trovata');
+        return false;
+      }
+
+      // Aggiorna sempre la sessione corrente
+      this.gameService.setCurrentSession(session);
+      
+      // Se il gioco è in corso, reindirizza alla pagina di gioco
+      if (session.status === 'IN_PROGRESS') {
+        console.log('Game already in progress, redirecting to game page');
+        this.router.navigate(['/game', sessionCode]);
+        return false;
+      }
+      
+      return true;
+      
+    } catch (error) {
+      console.error('Error in lobby guard:', error);
+      this.redirectToHome('Errore nel caricamento della sessione');
+      return false;
+    }
   }
 
   private redirectToHome(message: string) {

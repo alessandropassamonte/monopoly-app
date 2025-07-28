@@ -1,0 +1,223 @@
+/* Game Page Styles - Modern Design */
+
+/* Global animations */
+@keyframes pulse {
+  0%, 100% { 
+    opacity: 1; 
+    transform: scale(1);
+  }
+  50% { 
+    opacity: 0.8; 
+    transform: scale(1.02);
+  }
+}
+
+@keyframes slideIn {
+  from { 
+    opacity: 0; 
+    transform: translateY(20px); 
+  }
+  to { 
+    opacity: 1; 
+    transform: translateY(0); 
+  }
+}
+
+/* Content animations */
+.game-content {
+  animation: slideIn 0.5s ease-out;
+}
+
+/* Player cards hover effects */
+.player-card {
+  &:hover {
+    .player-avatar {
+      transform: scale(1.05);
+    }
+  }
+}
+
+/* Transaction animations */
+.transaction-item {
+  animation: slideIn 0.3s ease-out;
+  
+  &:hover {
+    .transaction-icon {
+      transform: rotate(5deg) scale(1.1);
+    }
+  }
+}
+
+/* Action buttons enhanced effects */
+.action-button {
+  position: relative;
+  overflow: hidden;
+  
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+    transition: left 0.5s;
+  }
+  
+  &:hover::before {
+    left: 100%;
+  }
+}
+
+/* Custom scrollbar for transactions */
+.transactions-container {
+  &::-webkit-scrollbar {
+    width: 6px;
+  }
+  
+  &::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 3px;
+  }
+  
+  &::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 3px;
+    
+    &:hover {
+      background: #a8a8a8;
+    }
+  }
+}
+
+/* Responsive design */
+@media (max-width: 1024px) {
+  .players-grid {
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)) !important;
+  }
+  
+  .action-buttons {
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)) !important;
+  }
+}
+
+@media (max-width: 768px) {
+  .players-grid {
+    grid-template-columns: 1fr !important;
+  }
+  
+  .action-buttons {
+    grid-template-columns: 1fr !important;
+  }
+  
+  .transaction-item {
+    padding: 1rem !important;
+    
+    .transaction-details {
+      flex-direction: column;
+      align-items: start !important;
+      gap: 0.5rem;
+    }
+    
+    .transaction-amount {
+      font-size: 1.1rem !important;
+    }
+  }
+}
+
+@media (max-width: 480px) {
+  .container-padding {
+    padding: 0.75rem !important;
+  }
+  
+  .section-title {
+    font-size: 1.2rem !important;
+  }
+  
+  .player-card {
+    padding: 1rem !important;
+    
+    .player-avatar {
+      width: 60px !important;
+      height: 60px !important;
+    }
+    
+    .player-name {
+      font-size: 1.1rem !important;
+    }
+    
+    .player-balance {
+      font-size: 1.2rem !important;
+    }
+  }
+  
+  .action-button {
+    padding: 1.2rem !important;
+    
+    .action-icon {
+      width: 40px !important;
+      height: 40px !important;
+    }
+    
+    .action-title {
+      font-size: 1rem !important;
+    }
+    
+    .action-description {
+      font-size: 0.85rem !important;
+    }
+  }
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background-primary: #1a202c;
+    --background-secondary: #2d3748;
+    --card-background: #2d3748;
+    --text-primary: #ffffff;
+    --text-secondary: #a0aec0;
+    --border-color: #4a5568;
+  }
+}
+
+/* Loading states */
+.loading-skeleton {
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: loading 1.5s infinite;
+}
+
+@keyframes loading {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+/* Enhanced focus styles for accessibility */
+button:focus-visible,
+select:focus-visible,
+input:focus-visible {
+  outline: 2px solid #3182ce;
+  outline-offset: 2px;
+  box-shadow: 0 0 0 3px rgba(49, 130, 206, 0.1);
+}
+
+/* Print styles */
+@media print {
+  .action-buttons,
+  .header-actions,
+  ion-header {
+    display: none !important;
+  }
+  
+  .transaction-item {
+    break-inside: avoid;
+    margin-bottom: 0.5rem !important;
+    box-shadow: none !important;
+    border: 1px solid #ccc;
+  }
+}

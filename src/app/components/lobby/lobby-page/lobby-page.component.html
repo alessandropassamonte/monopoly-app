@@ -1,0 +1,75 @@
+<ion-header>
+    <ion-toolbar color="primary">
+      <ion-buttons slot="start">
+        <ion-button (click)="goBack()">
+          <ion-icon name="arrow-back"></ion-icon>
+        </ion-button>
+      </ion-buttons>
+      <ion-title>Lobby - {{sessionCode}}</ion-title>
+      <ion-buttons slot="end" *ngIf="isHost">
+        <ion-button (click)="endSession()">
+          <ion-icon name="close"></ion-icon>
+        </ion-button>
+      </ion-buttons>
+    </ion-toolbar>
+  </ion-header>
+
+  <ion-content class="lobby-content">
+    <div class="session-info" *ngIf="currentSession">
+      <div class="session-card">
+        <h2>Codice Sessione</h2>
+        <div class="session-code">{{sessionCode}}</div>
+        <p>Host: {{currentSession.hostName}}</p>
+        <p>Giocatori: {{currentSession.players.length}}/8</p>
+      </div>
+    </div>
+
+    <div class="players-section">
+      <h3>Giocatori Connessi</h3>
+      <div class="players-grid">
+        <div 
+          *ngFor="let player of currentSession?.players" 
+          class="player-card"
+          [ngClass]="gameService.getPlayerColorClass(player.color)">
+          <div class="player-avatar">
+            <ion-icon name="person" class="avatar-icon"></ion-icon>
+          </div>
+          <div class="player-info">
+            <h4>{{player.name}}</h4>
+            <span class="player-role" *ngIf="player.isHost">👑 Host</span>
+            <span class="player-balance">{{gameService.formatCurrency(player.balance)}}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="action-section" *ngIf="currentSession?.status === 'WAITING'">
+      <ion-button 
+        *ngIf="isHost && currentSession.players.length >= 2"
+        expand="block" 
+        color="success"
+        size="large"
+        class="start-button"
+        (click)="startGame()">
+        <ion-icon name="play" slot="start"></ion-icon>
+        Inizia Partita
+      </ion-button>
+
+      <div *ngIf="currentSession.players.length < 2" class="waiting-message">
+        <ion-icon name="hourglass" class="waiting-icon"></ion-icon>
+        <p>In attesa di altri giocatori...</p>
+        <p class="hint">Servono almeno 2 giocatori per iniziare</p>
+      </div>
+    </div>
+
+    <div class="game-started" *ngIf="currentSession?.status === 'IN_PROGRESS'">
+      <ion-button 
+        expand="block" 
+        color="primary"
+        size="large"
+        (click)="goToGame()">
+        <ion-icon name="enter" slot="start"></ion-icon>
+        Vai alla Partita
+      </ion-button>
+    </div>
+  </ion-content>

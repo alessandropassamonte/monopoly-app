@@ -1,0 +1,104 @@
+<ion-header>
+    <ion-toolbar color="primary">
+      <ion-title>Monopoly Bank - {{sessionCode}}</ion-title>
+      <ion-buttons slot="end">
+        <ion-button (click)="showMenu()">
+          <ion-icon name="menu"></ion-icon>
+        </ion-button>
+      </ion-buttons>
+    </ion-toolbar>
+  </ion-header>
+
+  <ion-content class="game-content">
+    <!-- Players Balance Overview -->
+    <div class="players-overview">
+      <h3>Saldi Giocatori</h3>
+      <div class="players-balance-grid">
+        <div 
+          *ngFor="let player of currentSession?.players" 
+          class="balance-card"
+          [ngClass]="gameService.getPlayerColorClass(player.color)"
+          (click)="selectPlayer(player)">
+          <div class="player-header">
+            <span class="player-name">{{player.name}}</span>
+            <ion-icon *ngIf="player.isHost" name="star" class="host-icon"></ion-icon>
+          </div>
+          <div class="player-balance">{{gameService.formatCurrency(player.balance)}}</div>
+          <div class="player-properties">{{player.propertiesCount}} proprietà</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="quick-actions">
+      <h3>Azioni Rapide</h3>
+      <div class="action-buttons">
+        <ion-button 
+          expand="block" 
+          fill="outline" 
+          color="primary"
+          (click)="showTransferModal()">
+          <ion-icon name="swap-horizontal" slot="start"></ion-icon>
+          Trasferisci Denaro
+        </ion-button>
+        
+        <ion-button 
+          expand="block" 
+          fill="outline" 
+          color="success"
+          (click)="showBankPaymentModal('FROM_BANK')">
+          <ion-icon name="arrow-down" slot="start"></ion-icon>
+          Ricevi dalla Banca
+        </ion-button>
+
+        <ion-button 
+          expand="block" 
+          fill="outline" 
+          color="warning"
+          (click)="showBankPaymentModal('TO_BANK')">
+          <ion-icon name="arrow-up" slot="start"></ion-icon>
+          Paga alla Banca
+        </ion-button>
+
+        <ion-button 
+          expand="block" 
+          fill="outline" 
+          color="tertiary"
+          (click)="showPropertiesModal()">
+          <ion-icon name="business" slot="start"></ion-icon>
+          Gestisci Proprietà
+        </ion-button>
+      </div>
+    </div>
+
+    <!-- Recent Transactions -->
+    <div class="transactions-section">
+      <div class="section-header">
+        <h3>Transazioni Recenti</h3>
+        <ion-button 
+          fill="clear" 
+          size="small"
+          (click)="refreshTransactions()">
+          <ion-icon name="refresh"></ion-icon>
+        </ion-button>
+      </div>
+      
+      <div class="transactions-list">
+        <div 
+          *ngFor="let transaction of recentTransactions" 
+          class="transaction-item"
+          [ngClass]="getTransactionClass(transaction)">
+          <div class="transaction-info">
+            <div class="transaction-description">{{transaction.description}}</div>
+            <div class="transaction-players">
+              {{transaction.fromPlayerName}} → {{transaction.toPlayerName}}
+            </div>
+            <div class="transaction-time">{{formatTime(transaction.timestamp)}}</div>
+          </div>
+          <div class="transaction-amount" [ngClass]="getAmountClass(transaction)">
+            {{gameService.formatCurrency(transaction.amount)}}
+          </div>
+        </div>
+      </div>
+    </div>
+  </ion-content>

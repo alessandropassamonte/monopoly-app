@@ -1,0 +1,113 @@
+<ion-header>
+    <ion-toolbar>
+      <ion-title>Gestione Proprietà</ion-title>
+      <ion-buttons slot="end">
+        <ion-button (click)="dismiss()">
+          <ion-icon name="close"></ion-icon>
+        </ion-button>
+      </ion-buttons>
+    </ion-toolbar>
+  </ion-header>
+
+  <ion-content>
+    <ion-segment [(ngModel)]="selectedSegment" (ionChange)="segmentChanged()">
+      <ion-segment-button value="available">
+        <ion-label>Disponibili</ion-label>
+      </ion-segment-button>
+      <ion-segment-button value="owned">
+        <ion-label>Possedute</ion-label>
+      </ion-segment-button>
+    </ion-segment>
+
+    <!-- Available Properties -->
+    <div *ngIf="selectedSegment === 'available'" class="properties-section">
+      <div class="properties-grid">
+        <div 
+          *ngFor="let property of availableProperties" 
+          class="property-card available-property"
+          [ngClass]="gameService.getPropertyColorClass(property.colorGroup)">
+          <div class="property-header">
+            <h4>{{property.name}}</h4>
+            <div class="property-type">{{getPropertyTypeLabel(property.type)}}</div>
+          </div>
+          <div class="property-details">
+            <div class="property-price">{{gameService.formatCurrency(property.price)}}</div>
+            <div class="property-rent">Affitto: {{gameService.formatCurrency(property.rent)}}</div>
+          </div>
+          <ion-button 
+            expand="block" 
+            size="small"
+            (click)="purchaseProperty(property)">
+            Acquista
+          </ion-button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Owned Properties by Player -->
+    <div *ngIf="selectedSegment === 'owned'" class="properties-section">
+      <ion-item>
+        <ion-label>Seleziona Giocatore</ion-label>
+        <ion-select [(ngModel)]="selectedPlayerId" (ionChange)="loadPlayerProperties()">
+          <ion-select-option 
+            *ngFor="let player of players" 
+            [value]="player.id">
+            {{player.name}}
+          </ion-select-option>
+        </ion-select>
+      </ion-item>
+
+      <div *ngIf="selectedPlayerId" class="properties-grid">
+        <div 
+          *ngFor="let ownership of playerProperties" 
+          class="property-card owned-property"
+          [ngClass]="gameService.getPropertyColorClass(ownership.colorGroup)">
+          <div class="property-header">
+            <h4>{{ownership.propertyName}}</h4>
+            <div class="property-status">
+              <span *ngIf="ownership.isMortgaged" class="mortgaged">Ipotecata</span>
+              <span *ngIf="ownership.hasHotel" class="hotel">🏨</span>
+              <span *ngIf="ownership.houses > 0" class="houses">
+                <span *ngFor="let house of getHousesArray(ownership.houses)">🏠</span>
+              </span>
+            </div>
+          </div>
+          <div class="property-details">
+            <div class="property-rent">Affitto: {{gameService.formatCurrency(ownership.currentRent)}}</div>
+          </div>
+          <div class="property-actions">
+            <ion-button 
+              *ngIf="!ownership.isMortgaged && !ownership.hasHotel && ownership.houses < 4"
+              size="small" 
+              fill="outline"
+              (click)="buildHouse(ownership)">
+              🏠 Casa
+            </ion-button>
+            <ion-button 
+              *ngIf="ownership.houses === 4 && !ownership.hasHotel"
+              size="small" 
+              fill="outline"
+              (click)="buildHotel(ownership)">
+              🏨 Hotel
+            </ion-button>
+            <ion-button 
+              *ngIf="!ownership.isMortgaged"
+              size="small" 
+              fill="outline" 
+              color="warning"
+              (click)="mortgageProperty(ownership)">
+              Ipoteca
+            </ion-button>
+            <ion-button 
+              *ngIf="ownership.isMortgaged"
+              size="small" 
+              fill="outline" 
+              color="success"
+              (click)="redeemProperty(ownership)">
+              Riscatta
+            </ion-button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </ion-content>

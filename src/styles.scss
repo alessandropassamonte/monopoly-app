@@ -78,3 +78,162 @@ ion-toolbar {
 .property-yellow { --property-color: var(--property-yellow); }
 .property-green { --property-color: var(--property-green); }
 .property-dark-blue { --property-color: var(--property-dark-blue); }
+
+
+// src/app/components/wealth/wealth-management-modal/wealth-management-modal.component.scss
+// QUESTO È UN FILE COMPLETAMENTE NUOVO
+
+.wealth-modal {
+  --width: 95%;
+  --max-width: 1000px;
+  --height: 90%;
+  --border-radius: 25px;
+  --box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .wealth-modal {
+    --width: 100%;
+    --height: 100%;
+    --border-radius: 0px;
+  }
+}
+
+/* Loading animations */
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.loading-indicator {
+  animation: pulse 1.5s infinite;
+}
+
+// src/app/components/auction/auction-modal/auction-modal.component.scss  
+// QUESTO È UN FILE COMPLETAMENTE NUOVO
+
+.auction-modal {
+  --width: 90%;
+  --max-width: 600px;
+  --height: 80%;
+  --border-radius: 20px;
+  --box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+}
+
+/* Quick alert animation */
+.quick-alert {
+  --max-width: 300px;
+  --border-radius: 15px;
+  
+  .alert-wrapper {
+    animation: slideInDown 0.3s ease-out;
+  }
+}
+
+@keyframes slideInDown {
+  from {
+    opacity: 0;
+    transform: translateY(-30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Enhanced button styles */
+.bid-button {
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+  
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+    transition: left 0.5s;
+  }
+  
+  &:hover::before {
+    left: 100%;
+  }
+  
+  &:disabled {
+    cursor: not-allowed;
+    
+    &::before {
+      display: none;
+    }
+  }
+}
+
+/* Grid improvements for smaller screens */
+@media (max-width: 480px) {
+  .auction-modal {
+    --width: 100%;
+    --height: 100%;
+    --border-radius: 0px;
+  }
+  
+  .bid-actions {
+    grid-template-columns: 1fr !important;
+    gap: 0.8rem;
+  }
+  
+  .property-info {
+    flex-direction: column !important;
+    text-align: center;
+  }
+}
+
+// AGGIUNGI questi stili al global styles.scss per i nuovi modali:
+
+/* Modal CSS Classes - AGGIUNGI AL TUO styles.scss */
+.wealth-modal {
+  --width: 95%;
+  --max-width: 1000px;
+  --height: 90%;
+  --border-radius: 25px;
+  --box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+}
+
+.auction-modal {
+  --width: 90%;
+  --max-width: 600px;
+  --height: 80%;
+  --border-radius: 20px;
+  --box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+}
+
+.quick-alert {
+  --max-width: 300px;
+  --border-radius: 15px;
+  
+  .alert-wrapper {
+    animation: slideInDown 0.3s ease-out;
+  }
+}
+
+@keyframes slideInDown {
+  from {
+    opacity: 0;
+    transform: translateY(-30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (max-width: 768px) {
+  .wealth-modal, .auction-modal {
+    --width: 100%;
+    --height: 100%;
+    --border-radius: 0px;
+  }
+}

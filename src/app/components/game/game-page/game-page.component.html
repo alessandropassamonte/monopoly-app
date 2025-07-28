@@ -174,6 +174,45 @@
             </div>
           </div>
         </button>
+
+        
+        <!-- NUOVO: Paga Affitto -->
+        <button (click)="showRentPaymentModal()" style="background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%); 
+                       color: white; border: none; border-radius: 15px; padding: 1.5rem; 
+                       text-align: left; cursor: pointer; transition: all 0.3s ease; 
+                       box-shadow: 0 4px 15px rgba(220, 38, 38, 0.3);"
+          onmouseover="this.style.transform='translateY(-5px)'; this.style.boxShadow='0 8px 25px rgba(220, 38, 38, 0.4)';"
+          onmouseout="this.style.transform='translateY(0px)'; this.style.boxShadow='0 4px 15px rgba(220, 38, 38, 0.3)';">
+          <div style="display: flex; align-items: center; gap: 1rem;">
+            <div style="width: 50px; height: 50px; background: rgba(255,255,255,0.2); 
+                        border-radius: 12px; display: flex; align-items: center; justify-content: center;">
+              <ion-icon name="home" style="font-size: 1.5rem;"></ion-icon>
+            </div>
+            <div>
+              <h4 style="margin: 0 0 0.3rem 0; font-size: 1.1rem; font-weight: bold;">Paga Affitto</h4>
+              <p style="margin: 0; font-size: 0.9rem; opacity: 0.9;">Paga per una proprietà</p>
+            </div>
+          </div>
+        </button>
+
+        <!-- NUOVO: Gestione Patrimonio -->
+        <button (click)="showWealthManagementModal()" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); 
+                       color: white; border: none; border-radius: 15px; padding: 1.5rem; 
+                       text-align: left; cursor: pointer; transition: all 0.3s ease; 
+                       box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);"
+          onmouseover="this.style.transform='translateY(-5px)'; this.style.boxShadow='0 8px 25px rgba(16, 185, 129, 0.4)';"
+          onmouseout="this.style.transform='translateY(0px)'; this.style.boxShadow='0 4px 15px rgba(16, 185, 129, 0.3)';">
+          <div style="display: flex; align-items: center; gap: 1rem;">
+            <div style="width: 50px; height: 50px; background: rgba(255,255,255,0.2); 
+                        border-radius: 12px; display: flex; align-items: center; justify-content: center;">
+              <ion-icon name="analytics" style="font-size: 1.5rem;"></ion-icon>
+            </div>
+            <div>
+              <h4 style="margin: 0 0 0.3rem 0; font-size: 1.1rem; font-weight: bold;">Gestione Patrimonio</h4>
+              <p style="margin: 0; font-size: 0.9rem; opacity: 0.9;">Patrimonio, liquidazioni, bancarotta</p>
+            </div>
+          </div>
+        </button>
       </div>
     </div>
 

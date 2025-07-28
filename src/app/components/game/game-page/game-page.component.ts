@@ -10,6 +10,7 @@ import { GameService } from '../../../services/game.service';
 import { ApiService } from '../../../services/api.service';
 import { GameSession } from '../../../models/game-session.model';
 import { PropertiesModalComponent } from '../../properties/properties-modal/properties-modal.component';
+import { WealthManagementModalComponent } from './wealth-management-modal/wealth-management-modal.component';
 
 @Component({
   selector: 'app-game',
@@ -23,6 +24,7 @@ export class GamePageComponent implements OnInit, OnDestroy {
   recentTransactions: Transaction[] = [];
   selectedPlayer: Player | null = null;
   private subscriptions: Subscription[] = [];
+  loadingController: any;
 
   constructor(
     private route: ActivatedRoute,
@@ -206,28 +208,6 @@ export class GamePageComponent implements OnInit, OnDestroy {
     await alert.present();
   }
 
-  async showTransferWithSelects() {
-    if (!this.currentSession?.players?.length) return;
-
-    // Create action sheet for FROM player selection
-    const fromPlayerSheet = await this.actionSheetController.create({
-      header: 'Chi trasferisce il denaro?',
-      buttons: [
-        ...this.currentSession.players.map(player => ({
-          text: `${player.name} (${this.gameService.formatCurrency(player.balance)})`,
-          handler: () => {
-            this.selectFromPlayerForTransfer(player);
-          }
-        })),
-        {
-          text: 'Annulla',
-          role: 'cancel'
-        }
-      ]
-    });
-    await fromPlayerSheet.present();
-  }
-
   async selectFromPlayerForTransfer(fromPlayer: Player) {
     // Create action sheet for TO player selection (exclude fromPlayer)
     const availablePlayers = this.currentSession!.players.filter(p => p.id !== fromPlayer.id);
@@ -305,31 +285,6 @@ export class GamePageComponent implements OnInit, OnDestroy {
     }
   }
 
-  async showBankPaymentModal(type: 'FROM_BANK' | 'TO_BANK') {
-    if (!this.currentSession?.players?.length) return;
-
-    const isFromBank = type === 'FROM_BANK';
-    console.log('=== SHOWING BANK PAYMENT MODAL ===');
-    console.log('Type:', type, 'Players available:', this.currentSession.players.length);
-
-    // Create action sheet for player selection
-    const actionSheet = await this.actionSheetController.create({
-      header: isFromBank ? 'Chi riceve denaro dalla Banca?' : 'Chi paga denaro alla Banca?',
-      buttons: [
-        ...this.currentSession.players.map(player => ({
-          text: `${player.name} (${this.gameService.formatCurrency(player.balance)})`,
-          handler: () => {
-            this.showBankAmountModal(player, isFromBank);
-          }
-        })),
-        {
-          text: 'Annulla',
-          role: 'cancel'
-        }
-      ]
-    });
-    await actionSheet.present();
-  }
 
   async showBankAmountModal(player: Player, isFromBank: boolean) {
     const alert = await this.alertController.create({
@@ -521,47 +476,6 @@ export class GamePageComponent implements OnInit, OnDestroy {
     }
   }
 
-  async showMenu() {
-    const actionSheet = await this.actionSheetController.create({
-      header: 'Menu',
-      buttons: [
-        {
-          text: 'Visualizza Tutte le Transazioni',
-          icon: 'list',
-          handler: () => {
-            this.showFullTransactionsList();
-          }
-        },
-        {
-          text: 'Riepilogo Proprietà',
-          icon: 'business',
-          handler: () => {
-            this.showPropertiesOverview();
-          }
-        },
-        {
-          text: 'Statistiche Partita',
-          icon: 'analytics',
-          handler: () => {
-            this.showGameStatistics();
-          }
-        },
-        {
-          text: 'Calcolatore Affitto',
-          icon: 'calculator',
-          handler: () => {
-            this.showRentCalculator();
-          }
-        },
-        {
-          text: 'Annulla',
-          icon: 'close',
-          role: 'cancel'
-        }
-      ]
-    });
-    await actionSheet.present();
-  }
 
   async showRentCalculator() {
     const alert = await this.alertController.create({
@@ -699,20 +613,7 @@ export class GamePageComponent implements OnInit, OnDestroy {
       (B < 255 ? B < 1 ? 0 : B : 255)).toString(16).slice(1);
   }
 
-  getTransactionColor(transaction: Transaction): string {
-    const colorMap: { [key: string]: string } = {
-      'PLAYER_TO_PLAYER': '#3182ce',
-      'PLAYER_TO_BANK': '#e53e3e',
-      'BANK_TO_PLAYER': '#38a169',
-      'PROPERTY_PURCHASE': '#805ad5',
-      'RENT_PAYMENT': '#ed8936',
-      'TAX_PAYMENT': '#e53e3e',
-      'SALARY': '#38a169'
-    };
-    return colorMap[transaction.type] || '#4a5568';
-  }
-
-  getTransactionBg(transaction: Transaction): string {
+ getTransactionBg(transaction: Transaction): string {
     const bgMap: { [key: string]: string } = {
       'PLAYER_TO_PLAYER': '#ebf8ff',
       'PLAYER_TO_BANK': '#fed7d7',
@@ -725,18 +626,40 @@ export class GamePageComponent implements OnInit, OnDestroy {
     return bgMap[transaction.type] || '#f7fafc';
   }
 
-  getTransactionIcon(transaction: Transaction): string {
-    const iconMap: { [key: string]: string } = {
-      'PLAYER_TO_PLAYER': 'swap-horizontal',
-      'PLAYER_TO_BANK': 'arrow-up',
-      'BANK_TO_PLAYER': 'arrow-down',
-      'PROPERTY_PURCHASE': 'business',
-      'RENT_PAYMENT': 'home',
-      'TAX_PAYMENT': 'receipt',
-      'SALARY': 'cash'
-    };
-    return iconMap[transaction.type] || 'document';
-  }
+getTransactionIcon(transaction: Transaction): string {
+  const iconMap: { [key: string]: string } = {
+    'PLAYER_TO_PLAYER': 'swap-horizontal',
+    'PLAYER_TO_BANK': 'arrow-up',
+    'BANK_TO_PLAYER': 'arrow-down',
+    'PROPERTY_PURCHASE': 'business',
+    'RENT_PAYMENT': 'home', // NUOVO
+    'TAX_PAYMENT': 'receipt',
+    'SALARY': 'cash',
+    'BUILDING_SALE': 'construct', // NUOVO
+    'PROPERTY_TRANSFER': 'git-branch', // NUOVO
+    'LIQUIDATION': 'warning', // NUOVO
+    'AUCTION_PURCHASE': 'hammer' // NUOVO
+  };
+  return iconMap[transaction.type] || 'document';
+}
+
+// NELLA FUNZIONE getTransactionColor, aggiungi i nuovi casi:
+getTransactionColor(transaction: Transaction): string {
+  const colorMap: { [key: string]: string } = {
+    'PLAYER_TO_PLAYER': '#3182ce',
+    'PLAYER_TO_BANK': '#e53e3e',
+    'BANK_TO_PLAYER': '#38a169',
+    'PROPERTY_PURCHASE': '#805ad5',
+    'RENT_PAYMENT': '#dc2626', // NUOVO - rosso per affitti
+    'TAX_PAYMENT': '#e53e3e',
+    'SALARY': '#38a169',
+    'BUILDING_SALE': '#f59e0b', // NUOVO - arancione per vendite
+    'PROPERTY_TRANSFER': '#805ad5', // NUOVO - viola per trasferimenti
+    'LIQUIDATION': '#dc2626', // NUOVO - rosso per liquidazioni
+    'AUCTION_PURCHASE': '#f59e0b' // NUOVO - arancione per aste
+  };
+  return colorMap[transaction.type] || '#4a5568';
+}
 
   getAmountColor(transaction: Transaction): string {
     if (transaction.type === 'BANK_TO_PLAYER' || transaction.type === 'SALARY') {
@@ -746,5 +669,318 @@ export class GamePageComponent implements OnInit, OnDestroy {
       return '#e53e3e'; // Rosso per uscite
     }
     return '#2d3748'; // Grigio scuro per trasferimenti
+  }
+
+  /**
+   * NUOVO: Modal per pagamento affitti
+   */
+  async showRentPaymentModal() {
+    if (!this.currentSession?.players) {
+      const alert = await this.alertController.create({
+        header: 'Errore',
+        message: 'Nessun giocatore disponibile',
+        buttons: ['OK']
+      });
+      await alert.present();
+      return;
+    }
+
+    // Pre-seleziona il giocatore corrente come pagatore
+    const defaultPayerId = this.currentPlayer?.id;
+
+    const alert = await this.alertController.create({
+      header: 'Pagamento Affitto',
+      message: 'Seleziona la proprietà e il giocatore che deve pagare',
+      inputs: [
+        {
+          name: 'propertyName',
+          type: 'text',
+          placeholder: 'Nome proprietà (es. Via Roma)'
+        },
+        {
+          name: 'diceRoll',
+          type: 'number',
+          placeholder: 'Risultato dadi (solo per società)',
+          value: 7,
+          min: 2,
+          max: 12
+        }
+      ],
+      buttons: [
+        {
+          text: 'Annulla',
+          role: 'cancel'
+        },
+        {
+          text: 'Seleziona Giocatore',
+          handler: async (data) => {
+            if (data.propertyName) {
+              await this.showRentPlayerSelection(data.propertyName, data.diceRoll || 7, defaultPayerId);
+            }
+          }
+        }
+      ]
+    });
+    await alert.present();
+  }
+
+  private async showRentPlayerSelection(propertyName: string, diceRoll: number, defaultPayerId?: number) {
+    try {
+      const properties = await firstValueFrom(this.apiService.getAllProperties());
+      const property = properties.find(p => 
+        p.name.toLowerCase().includes(propertyName.toLowerCase())
+      );
+      
+      if (!property) {
+        const alert = await this.alertController.create({
+          header: 'Errore',
+          message: 'Proprietà non trovata',
+          buttons: ['OK']
+        });
+        await alert.present();
+        return;
+      }
+
+      // Calcola l'affitto previsto
+      const estimatedRent = await firstValueFrom(this.apiService.calculateRent(property.id, diceRoll));
+      
+      if (estimatedRent <= 0) {
+        const alert = await this.alertController.create({
+          header: 'Nessun Affitto',
+          message: 'Questa proprietà non genera affitto (non posseduta o ipotecata)',
+          buttons: ['OK']
+        });
+        await alert.present();
+        return;
+      }
+
+      // Seleziona il giocatore che paga (pre-seleziona quello corrente)
+      const actionSheet = await this.actionSheetController.create({
+        header: `Chi paga l'affitto per "${property.name}"?`,
+        subHeader: `Affitto stimato: ${this.gameService.formatCurrency(estimatedRent)}`,
+        buttons: [
+          ...this.currentSession!.players.map(player => ({
+            text: `${player.name} (${this.gameService.formatCurrency(player.balance)})` + 
+                  (player.id === defaultPayerId ? ' ⭐ TU' : ''),
+            handler: () => {
+              this.executeRentPayment(property.id, player.id, diceRoll, property.name);
+            }
+          })),
+          {
+            text: 'Annulla',
+            role: 'cancel'
+          }
+        ]
+      });
+      await actionSheet.present();
+
+    } catch (error) {
+      console.error('Error finding property for rent:', error);
+      const alert = await this.alertController.create({
+        header: 'Errore',
+        message: 'Errore nella ricerca della proprietà',
+        buttons: ['OK']
+      });
+      await alert.present();
+    }
+  }
+
+  private async executeRentPayment(propertyId: number, tenantPlayerId: number, diceRoll: number, propertyName: string) {
+    const loading = await this.loadingController.create({
+      message: 'Pagamento affitto...'
+    });
+    await loading.present();
+
+    try {
+      const transaction = await firstValueFrom(this.apiService.payRent(propertyId, tenantPlayerId, diceRoll));
+      
+      console.log('Rent payment completed:', transaction);
+      
+      const tenant = this.currentSession?.players.find(p => p.id === tenantPlayerId);
+      const alert = await this.alertController.create({
+        header: 'Affitto Pagato',
+        message: `${tenant?.name} ha pagato ${this.gameService.formatCurrency(transaction.amount)} per "${propertyName}"`,
+        buttons: ['OK']
+      });
+      await alert.present();
+      
+    } catch (error) {
+      console.error('Rent payment error:', error);
+      let errorMessage = 'Errore nel pagamento dell\'affitto';
+      
+      if (error instanceof Error && error.message) {
+        errorMessage = error.message;
+      }
+      
+      const alert = await this.alertController.create({
+        header: 'Errore Pagamento',
+        message: errorMessage,
+        buttons: ['OK']
+      });
+      await alert.present();
+    } finally {
+      loading.dismiss();
+    }
+  }
+
+  // AGGIORNA le funzioni esistenti per pre-selezionare il giocatore corrente:
+
+  async showTransferWithSelects() {
+    if (!this.currentSession?.players?.length) return;
+
+    // Pre-seleziona il giocatore corrente come mittente se disponibile
+    const defaultFromPlayer = this.currentPlayer;
+
+    // Create action sheet for FROM player selection
+    const fromPlayerButtons = this.currentSession.players.map(player => ({
+      text: `${player.name} (${this.gameService.formatCurrency(player.balance)})` + 
+            (player.id === defaultFromPlayer?.id ? ' ⭐ TU' : ''),
+      handler: () => {
+        this.selectFromPlayerForTransfer(player);
+      }
+    }));
+
+    // Se c'è un giocatore corrente, mettilo in cima
+    if (defaultFromPlayer) {
+      const currentPlayerButton = fromPlayerButtons.find(btn => 
+        btn.text.includes(defaultFromPlayer.name)
+      );
+      if (currentPlayerButton) {
+        fromPlayerButtons.splice(fromPlayerButtons.indexOf(currentPlayerButton), 1);
+        fromPlayerButtons.unshift(currentPlayerButton);
+      }
+    }
+
+    const fromPlayerSheet = await this.actionSheetController.create({
+      header: 'Chi trasferisce il denaro?',
+      buttons: [
+        ...fromPlayerButtons,
+        {
+          text: 'Annulla',
+          role: 'cancel'
+        }
+      ]
+    });
+    await fromPlayerSheet.present();
+  }
+
+  async showBankPaymentModal(type: 'FROM_BANK' | 'TO_BANK') {
+    if (!this.currentSession?.players?.length) return;
+
+    const isFromBank = type === 'FROM_BANK';
+    console.log('=== SHOWING BANK PAYMENT MODAL ===');
+    console.log('Type:', type, 'Players available:', this.currentSession.players.length);
+
+    // Pre-seleziona il giocatore corrente se disponibile
+    const defaultPlayer = this.currentPlayer;
+
+    // Crea i pulsanti con il giocatore corrente evidenziato
+    const playerButtons = this.currentSession.players.map(player => ({
+      text: `${player.name} (${this.gameService.formatCurrency(player.balance)})` + 
+            (player.id === defaultPlayer?.id ? ' ⭐ TU' : ''),
+      handler: () => {
+        this.showBankAmountModal(player, isFromBank);
+      }
+    }));
+
+    // Se c'è un giocatore corrente, mettilo in cima
+    if (defaultPlayer) {
+      const currentPlayerButton = playerButtons.find(btn => 
+        btn.text.includes(defaultPlayer.name)
+      );
+      if (currentPlayerButton) {
+        playerButtons.splice(playerButtons.indexOf(currentPlayerButton), 1);
+        playerButtons.unshift(currentPlayerButton);
+      }
+    }
+
+    // Create action sheet for player selection
+    const actionSheet = await this.actionSheetController.create({
+      header: isFromBank ? 'Chi riceve denaro dalla Banca?' : 'Chi paga denaro alla Banca?',
+      buttons: [
+        ...playerButtons,
+        {
+          text: 'Annulla',
+          role: 'cancel'
+        }
+      ]
+    });
+    await actionSheet.present();
+  }
+
+  // AGGIORNA la funzione showMenu esistente:
+  async showMenu() {
+    const actionSheet = await this.actionSheetController.create({
+      header: 'Menu',
+      buttons: [
+        {
+          text: 'Paga Affitto',
+          icon: 'home',
+          handler: () => {
+            this.showRentPaymentModal();
+          }
+        },
+        {
+          text: 'Gestione Patrimonio',
+          icon: 'analytics',
+          handler: () => {
+            this.showWealthManagementModal();
+          }
+        },
+        {
+          text: 'Visualizza Tutte le Transazioni',
+          icon: 'list',
+          handler: () => {
+            this.showFullTransactionsList();
+          }
+        },
+        {
+          text: 'Riepilogo Proprietà',
+          icon: 'business',
+          handler: () => {
+            this.showPropertiesOverview();
+          }
+        },
+        {
+          text: 'Statistiche Partita',
+          icon: 'trending-up',
+          handler: () => {
+            this.showGameStatistics();
+          }
+        },
+        {
+          text: 'Calcolatore Affitto',
+          icon: 'calculator',
+          handler: () => {
+            this.showRentCalculator();
+          }
+        },
+        {
+          text: 'Annulla',
+          icon: 'close',
+          role: 'cancel'
+        }
+      ]
+    });
+    await actionSheet.present();
+  }
+
+  /**
+   * NUOVO: Modal per gestione patrimonio e bancarotta
+   */
+  async showWealthManagementModal() {
+    console.log('=== OPENING WEALTH MANAGEMENT MODAL ===');
+    const modal = await this.modalController.create({
+      component: WealthManagementModalComponent,
+      cssClass: 'wealth-modal'
+    });
+    
+    await modal.present();
+    
+    const { data } = await modal.onDidDismiss();
+    if (data?.refresh) {
+      console.log('Refreshing game data after wealth management modal');
+      this.loadGameData();
+    }
   }
 }

@@ -1,0 +1,132 @@
+<!-- src/app/components/wealth/wealth-management-modal/wealth-management-modal.component.html -->
+<!-- QUESTO È UN FILE COMPLETAMENTE NUOVO -->
+
+<ion-header>
+  <ion-toolbar style="--background: linear-gradient(135deg, #10b981 0%, #059669 100%); --color: white;">
+    <ion-title style="font-family: 'Trebuchet MS', Arial, sans-serif; font-weight: bold; display: flex; align-items: center; gap: 0.5rem;">
+      <ion-icon name="analytics" style="font-size: 1.3rem;"></ion-icon>
+      Gestione Patrimonio
+    </ion-title>
+    <ion-buttons slot="end">
+      <ion-button (click)="dismiss()" style="--color: white;">
+        <ion-icon name="close"></ion-icon>
+      </ion-button>
+    </ion-buttons>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content style="--background: linear-gradient(135deg, #f7fafc 0%, #edf2f7 100%);">
+  
+  <div style="padding: 1.5rem; max-width: 1000px; margin: 0 auto;">
+
+    <!-- Overview Card -->
+    <div style="background: white; border-radius: 20px; padding: 2rem; 
+                margin-bottom: 2rem; box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1); 
+                border-left: 6px solid #10b981;">
+      <h3 style="font-family: 'Trebuchet MS', Arial, sans-serif; 
+                 color: #2d3748; margin: 0 0 1.5rem 0; font-size: 1.4rem; font-weight: bold;">
+        💰 Riepilogo Patrimoniale
+      </h3>
+      
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
+        <div style="text-align: center; padding: 1rem; background: #f0fff4; border-radius: 12px; border: 2px solid #10b981;">
+          <div style="font-size: 0.9rem; color: #047857; margin-bottom: 0.5rem; font-weight: 600;">PATRIMONIO TOTALE</div>
+          <div style="font-size: 1.5rem; font-weight: bold; color: #10b981; font-family: 'Courier New', monospace;">
+            {{gameService.formatCurrency(getTotalNetWorth())}}
+          </div>
+        </div>
+        <div style="text-align: center; padding: 1rem; background: #fef3c7; border-radius: 12px; border: 2px solid #f59e0b;">
+          <div style="font-size: 0.9rem; color: #d97706; margin-bottom: 0.5rem; font-weight: 600;">LIQUIDITÀ TOTALE</div>
+          <div style="font-size: 1.5rem; font-weight: bold; color: #f59e0b; font-family: 'Courier New', monospace;">
+            {{gameService.formatCurrency(getTotalLiquidation())}}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Players Wealth Details -->
+    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(350px, 1fr)); gap: 1.5rem;">
+      <div *ngFor="let wealth of playersWealth" 
+           style="background: white; border-radius: 20px; padding: 1.5rem; 
+                  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1); 
+                  transition: all 0.3s ease; position: relative;"
+           onmouseover="this.style.transform='translateY(-5px)'; this.style.boxShadow='0 12px 35px rgba(0, 0, 0, 0.15)';"
+           onmouseout="this.style.transform='translateY(0px)'; this.style.boxShadow='0 8px 25px rgba(0, 0, 0, 0.1)';">
+        
+        <!-- Player Header -->
+        <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1.5rem;">
+          <div [style]="'width: 60px; height: 60px; border-radius: 50%; 
+                        background: ' + getPlayerColorHex(wealth.player.color) + '; 
+                        display: flex; align-items: center; justify-content: center; 
+                        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);'">
+            <ion-icon name="person-outline" style="color: white; font-size: 1.8rem;"></ion-icon>
+          </div>
+          <div style="flex: 1;">
+            <h4 style="margin: 0 0 0.3rem 0; font-size: 1.2rem; font-weight: bold; color: #2d3748;">
+              {{wealth.player.name}}
+              <span *ngIf="wealth.player.host" style="color: #f59e0b; margin-left: 0.5rem;">👑</span>
+            </h4>
+            <div style="font-size: 0.9rem; color: #4a5568;">
+              {{wealth.player.propertiesCount}} proprietà
+            </div>
+          </div>
+        </div>
+
+        <!-- Wealth Details -->
+        <div style="margin-bottom: 1.5rem;">
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+            <div style="text-align: center; padding: 1rem; background: #f7fafc; border-radius: 10px;">
+              <div style="font-size: 0.8rem; color: #4a5568; margin-bottom: 0.3rem; font-weight: 500;">SALDO</div>
+              <div style="font-size: 1.2rem; font-weight: bold; color: #3182ce; font-family: 'Courier New', monospace;">
+                {{gameService.formatCurrency(wealth.player.balance)}}
+              </div>
+            </div>
+            <div style="text-align: center; padding: 1rem; background: #f7fafc; border-radius: 10px;">
+              <div style="font-size: 0.8rem; color: #4a5568; margin-bottom: 0.3rem; font-weight: 500;">PATRIMONIO</div>
+              <div *ngIf="!wealth.isLoading" style="font-size: 1.2rem; font-weight: bold; color: #10b981; font-family: 'Courier New', monospace;">
+                {{gameService.formatCurrency(wealth.netWorth)}}
+              </div>
+              <ion-spinner *ngIf="wealth.isLoading" name="crescent" style="width: 20px; height: 20px;"></ion-spinner>
+            </div>
+          </div>
+          
+          <div style="text-align: center; padding: 1rem; background: #fffbeb; border-radius: 10px; border: 2px solid #f59e0b;">
+            <div style="font-size: 0.8rem; color: #92400e; margin-bottom: 0.3rem; font-weight: 500;">VALORE LIQUIDAZIONE</div>
+            <div *ngIf="!wealth.isLoading" style="font-size: 1.1rem; font-weight: bold; color: #f59e0b; font-family: 'Courier New', monospace;">
+              {{gameService.formatCurrency(wealth.liquidationValue)}}
+            </div>
+            <ion-spinner *ngIf="wealth.isLoading" name="crescent" style="width: 18px; height: 18px;"></ion-spinner>
+          </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.8rem;">
+          <button (click)="liquidatePlayerAssets(wealth.player)"
+                  [disabled]="wealth.isLoading"
+                  style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); 
+                         color: white; border: none; border-radius: 10px; padding: 0.8rem; 
+                         font-weight: 600; font-size: 0.9rem; cursor: pointer; 
+                         transition: all 0.2s ease; display: flex; align-items: center; 
+                         justify-content: center; gap: 0.3rem;"
+                  onmouseover="this.style.transform='translateY(-2px)'"
+                  onmouseout="this.style.transform='translateY(0px)'">
+            💰 Liquida Asset
+          </button>
+          
+          <button (click)="showBankruptcyOptions(wealth.player)"
+                  [disabled]="wealth.isLoading"
+                  style="background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%); 
+                         color: white; border: none; border-radius: 10px; padding: 0.8rem; 
+                         font-weight: 600; font-size: 0.9rem; cursor: pointer; 
+                         transition: all 0.2s ease; display: flex; align-items: center; 
+                         justify-content: center; gap: 0.3rem;"
+                  onmouseover="this.style.transform='translateY(-2px)'"
+                  onmouseout="this.style.transform='translateY(0px)'">
+            💸 Bancarotta
+          </button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</ion-content>

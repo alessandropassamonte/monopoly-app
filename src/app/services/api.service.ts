@@ -105,4 +105,97 @@ export class ApiService {
   calculateRent(propertyId: number, diceRoll: number = 7): Observable<number> {
     return this.http.get<number>(`${this.baseUrl}/properties/${propertyId}/rent?diceRoll=${diceRoll}`);
   }
+
+  // NUOVE APIs per gestione avanzata proprietà
+
+  /**
+   * Pagamento affitto
+   */
+  payRent(propertyId: number, tenantPlayerId: number, diceRoll: number = 7): Observable<Transaction> {
+    return this.http.post<Transaction>(`${this.baseUrl}/properties/${propertyId}/pay-rent`, {
+      tenantPlayerId,
+      diceRoll
+    });
+  }
+
+  /**
+   * Vendita casa
+   */
+  sellHouse(ownershipId: number): Observable<PropertyOwnership> {
+    return this.http.post<PropertyOwnership>(`${this.baseUrl}/properties/ownership/${ownershipId}/sell-house`, {});
+  }
+
+  /**
+   * Vendita hotel
+   */
+  sellHotel(ownershipId: number): Observable<PropertyOwnership> {
+    return this.http.post<PropertyOwnership>(`${this.baseUrl}/properties/ownership/${ownershipId}/sell-hotel`, {});
+  }
+
+  /**
+   * Trasferimento proprietà tra giocatori
+   */
+  transferProperty(ownershipId: number, newOwnerId: number, price?: number): Observable<PropertyOwnership> {
+    return this.http.post<PropertyOwnership>(`${this.baseUrl}/properties/ownership/${ownershipId}/transfer`, {
+      newOwnerId,
+      price: price || null
+    });
+  }
+
+  /**
+   * Ottieni tutte le proprietà possedute in una sessione
+   */
+  getSessionProperties(sessionCode: string): Observable<PropertyOwnership[]> {
+    return this.http.get<PropertyOwnership[]>(`${this.baseUrl}/properties/session/${sessionCode}`);
+  }
+
+  // Bankruptcy APIs - NUOVO
+
+  /**
+   * Calcola il valore di liquidazione di un giocatore
+   */
+  calculateLiquidationValue(playerId: number): Observable<number> {
+    return this.http.get<number>(`${this.baseUrl}/bankruptcy/liquidation-value/${playerId}`);
+  }
+
+  /**
+   * Calcola il patrimonio netto di un giocatore
+   */
+  calculateNetWorth(playerId: number): Observable<number> {
+    return this.http.get<number>(`${this.baseUrl}/bankruptcy/net-worth/${playerId}`);
+  }
+
+  /**
+   * Liquidazione forzata degli asset
+   */
+  liquidateAssets(playerId: number): Observable<{liquidatedAmount: number, message: string}> {
+    return this.http.post<{liquidatedAmount: number, message: string}>(`${this.baseUrl}/bankruptcy/liquidate/${playerId}`, {});
+  }
+
+  /**
+   * Dichiarazione di bancarotta
+   */
+  declareBankruptcy(bankruptPlayerId: number, creditorPlayerId?: number): Observable<{status: string, message: string}> {
+    return this.http.post<{status: string, message: string}>(`${this.baseUrl}/bankruptcy/declare`, {
+      bankruptPlayerId,
+      creditorPlayerId: creditorPlayerId || null
+    });
+  }
+
+  /**
+   * Verifica bancarotta per un debito specifico
+   */
+  checkBankruptcy(playerId: number, debtAmount: number): Observable<{
+    isBankrupt: boolean,
+    liquidationValue: number,
+    debtAmount: number,
+    shortfall: number
+  }> {
+    return this.http.get<{
+      isBankrupt: boolean,
+      liquidationValue: number,
+      debtAmount: number,
+      shortfall: number
+    }>(`${this.baseUrl}/bankruptcy/check/${playerId}/${debtAmount}`);
+  }
 }

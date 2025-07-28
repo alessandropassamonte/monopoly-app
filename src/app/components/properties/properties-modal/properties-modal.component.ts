@@ -1,4 +1,7 @@
-import { Component, OnInit } from '@angular/core';
+// src/app/components/properties/properties-modal/properties-modal.component.ts
+// VERSIONE AGGIORNATA - limitata al giocatore corrente
+
+import { Component, OnInit, Input } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { IonicModule } from '@ionic/angular';
 import { firstValueFrom } from 'rxjs';
@@ -17,12 +20,13 @@ import { CommonModule } from '@angular/common';
   styleUrls: ['./properties-modal.component.scss']
 })
 export class PropertiesModalComponent implements OnInit {
+  @Input() currentPlayerOnly: boolean = true; // Nuovo parametro per limitare al giocatore corrente
+  
   selectedSegment = 'available';
   availableProperties: Property[] = [];
   allProperties: Property[] = [];
-  playerProperties: PropertyOwnership[] = [];
-  players: Player[] = [];
-  selectedPlayerId: number | null = null;
+  currentPlayerProperties: PropertyOwnership[] = [];
+  currentPlayer: Player | null = null;
   ownedPropertyIds: Set<number> = new Set();
 
   // Loading states
@@ -38,7 +42,7 @@ export class PropertiesModalComponent implements OnInit {
   ) { }
 
   async ngOnInit() {
-    console.log('=== PROPERTIES MODAL INIT ===');
+    console.log('=== PROPERTIES MODAL INIT (Current Player Only Mode) ===');
     await this.initializeModal();
   }
 
@@ -50,19 +54,26 @@ export class PropertiesModalComponent implements OnInit {
     await loading.present();
 
     try {
+      // Ottieni il giocatore corrente
+      await this.loadCurrentPlayer();
+      
+      if (!this.currentPlayer) {
+        throw new Error('Giocatore corrente non identificato');
+      }
+
       // Load all data in parallel
       await Promise.all([
-        this.loadPlayers(),
-        this.loadAllProperties()
+        this.loadAllProperties(),
+        this.loadOwnedProperties()
       ]);
 
-      // After loading players and properties, load ownership data
-      await this.loadOwnedProperties();
+      // Carica le proprietà del giocatore corrente
+      await this.loadCurrentPlayerProperties();
 
       console.log('Modal initialization completed');
       console.log('All properties:', this.allProperties.length);
       console.log('Available properties:', this.availableProperties.length);
-      console.log('Players:', this.players.length);
+      console.log('Current player properties:', this.currentPlayerProperties.length);
 
     } catch (error) {
       console.error('Error initializing properties modal:', error);
@@ -80,6 +91,16 @@ export class PropertiesModalComponent implements OnInit {
     }
   }
 
+  async loadCurrentPlayer() {
+    return new Promise<void>((resolve) => {
+      this.gameService.getCurrentPlayer().subscribe((player: Player | null) => {
+        this.currentPlayer = player;
+        console.log('Current player loaded:', this.currentPlayer?.name);
+        resolve();
+      });
+    });
+  }
+
   async loadAllProperties() {
     try {
       console.log('=== LOADING ALL PROPERTIES ===');
@@ -89,8 +110,6 @@ export class PropertiesModalComponent implements OnInit {
       this.allProperties = properties || [];
 
       console.log('All properties loaded:', this.allProperties.length);
-      this.allProperties.forEach(p => console.log(`- ${p.name} (${p.type}): ${p.price}`));
-
       this.updateAvailableProperties();
     } catch (error) {
       console.error('Error loading all properties:', error);
@@ -105,20 +124,23 @@ export class PropertiesModalComponent implements OnInit {
       console.log('=== LOADING OWNED PROPERTIES ===');
       this.ownedPropertyIds.clear();
 
-      if (this.players.length === 0) {
-        console.log('No players available, skipping owned properties loading');
+      // Ottieni la sessione corrente per tutti i giocatori
+      const session = await new Promise<any>((resolve) => {
+        this.gameService.getCurrentSession().subscribe(session => resolve(session));
+      });
+
+      if (!session?.players) {
+        console.log('No session or players available');
         return;
       }
 
       // Get all players' properties to determine which are owned
-      for (const player of this.players) {
+      for (const player of session.players) {
         try {
           const properties = await firstValueFrom(this.apiService.getPlayerProperties(player.id));
           const propertiesList = properties || [];
-          console.log(`Player ${player.name} owns ${propertiesList.length} properties`);
           propertiesList.forEach(prop => {
             this.ownedPropertyIds.add(prop.propertyId);
-            console.log(`- Owned: ${prop.propertyName} (ID: ${prop.propertyId})`);
           });
         } catch (playerError) {
           console.error(`Error loading properties for player ${player.name}:`, playerError);
@@ -134,73 +156,39 @@ export class PropertiesModalComponent implements OnInit {
 
   updateAvailableProperties() {
     console.log('=== UPDATING AVAILABLE PROPERTIES ===');
-    console.log('All properties count:', this.allProperties.length);
-    console.log('Owned properties count:', this.ownedPropertyIds.size);
-
     this.availableProperties = this.allProperties.filter(
       property => !this.ownedPropertyIds.has(property.id)
     );
-
     console.log('Available properties after filter:', this.availableProperties.length);
-    this.availableProperties.forEach(p => console.log(`- Available: ${p.name}`));
   }
 
-  loadPlayers() {
-    console.log('=== LOADING PLAYERS ===');
-
-    this.gameService.getCurrentSession().subscribe((session) => {
-      if (session?.players) {
-        this.players = session.players;
-        console.log('Players loaded from session:', this.players.length);
-        this.players.forEach(p => console.log(`- Player: ${p.name} (${p.balance})`));
-
-        if (this.players.length > 0 && !this.selectedPlayerId) {
-          // Auto-select current player if available
-          this.gameService.getCurrentPlayer().subscribe(currentPlayer => {
-            if (currentPlayer) {
-              this.selectedPlayerId = currentPlayer.id;
-              console.log('Auto-selected current player:', currentPlayer.name);
-            } else {
-              this.selectedPlayerId = this.players[0].id;
-              console.log('Auto-selected first player:', this.players[0].name);
-            }
-            this.loadPlayerProperties();
-          });
-        }
-      } else {
-        console.error('No session or players found');
-        this.players = [];
-      }
-    });
-  }
-
-  async loadPlayerProperties() {
-    if (!this.selectedPlayerId) {
-      console.log('No player selected, clearing properties');
-      this.playerProperties = [];
+  async loadCurrentPlayerProperties() {
+    if (!this.currentPlayer) {
+      console.log('No current player, clearing properties');
+      this.currentPlayerProperties = [];
       return;
     }
 
     try {
-      console.log('=== LOADING PLAYER PROPERTIES ===');
-      console.log('Loading properties for player ID:', this.selectedPlayerId);
+      console.log('=== LOADING CURRENT PLAYER PROPERTIES ===');
+      console.log('Loading properties for current player:', this.currentPlayer.name);
 
       this.isLoadingPlayerProperties = true;
-      const properties = await firstValueFrom(this.apiService.getPlayerProperties(this.selectedPlayerId));
-      this.playerProperties = properties || [];
+      const properties = await firstValueFrom(this.apiService.getPlayerProperties(this.currentPlayer.id));
+      this.currentPlayerProperties = properties || [];
 
-      console.log('Player properties loaded:', this.playerProperties.length);
-      this.playerProperties.forEach(p =>
+      console.log('Current player properties loaded:', this.currentPlayerProperties.length);
+      this.currentPlayerProperties.forEach(p =>
         console.log(`- ${p.propertyName}: ${p.houses} houses, hotel: ${p.hasHotel}, mortgaged: ${p.isMortgaged}`)
       );
 
     } catch (error) {
-      console.error('Error loading player properties:', error);
-      this.playerProperties = [];
+      console.error('Error loading current player properties:', error);
+      this.currentPlayerProperties = [];
 
       const errorAlert = await this.alertController.create({
         header: 'Errore',
-        message: 'Errore nel caricamento delle proprietà del giocatore',
+        message: 'Errore nel caricamento delle tue proprietà',
         buttons: ['OK']
       });
       await errorAlert.present();
@@ -213,52 +201,46 @@ export class PropertiesModalComponent implements OnInit {
     console.log('=== SEGMENT CHANGED ===');
     console.log('New segment:', this.selectedSegment);
 
-    if (this.selectedSegment === 'owned' && this.players.length > 0) {
-      if (!this.selectedPlayerId) {
-        // Try to auto-select current player
-        this.gameService.getCurrentPlayer().subscribe(currentPlayer => {
-          if (currentPlayer) {
-            this.selectedPlayerId = currentPlayer.id;
-          } else {
-            this.selectedPlayerId = this.players[0].id;
-          }
-          this.loadPlayerProperties();
-        });
-      } else {
-        this.loadPlayerProperties();
-      }
+    if (this.selectedSegment === 'owned') {
+      this.loadCurrentPlayerProperties();
     } else if (this.selectedSegment === 'available') {
       this.loadOwnedProperties();
     }
   }
 
+  // ============================================
+  // MODIFICATO: Acquisto limitato al giocatore corrente
+  // ============================================
   async purchaseProperty(property: Property) {
-    console.log('=== PURCHASE PROPERTY ===');
-    console.log('Property:', property.name, 'Price:', property.price);
-
-    const availablePlayers = this.players.filter(player => player.balance >= property.price);
-
-    if (availablePlayers.length === 0) {
+    if (!this.currentPlayer) {
       const alert = await this.alertController.create({
-        header: 'Impossibile Acquistare',
-        message: 'Nessun giocatore ha fondi sufficienti per questa proprietà.',
+        header: 'Errore',
+        message: 'Giocatore non identificato',
         buttons: ['OK']
       });
       await alert.present();
       return;
     }
 
-    // Create action sheet for player selection
-    const actionSheet = await this.alertController.create({
-      header: `Acquista "${property.name}"`,
-      message: `Prezzo: ${this.gameService.formatCurrency(property.price)}`,
-      inputs: availablePlayers.map(player => ({
-        name: 'playerId',
-        type: 'radio',
-        label: `${player.name} (${this.gameService.formatCurrency(player.balance)})`,
-        value: player.id,
-        checked: false
-      })),
+    console.log('=== PURCHASE PROPERTY (Current Player Only) ===');
+    console.log('Property:', property.name, 'Price:', property.price);
+    console.log('Current player:', this.currentPlayer.name, 'Balance:', this.currentPlayer.balance);
+
+    // Verifica fondi sufficienti
+    if (this.currentPlayer.balance < property.price) {
+      const alert = await this.alertController.create({
+        header: 'Fondi Insufficienti',
+        message: `Non hai abbastanza denaro per acquistare "${property.name}".\nCosto: ${this.gameService.formatCurrency(property.price)}\nTuo saldo: ${this.gameService.formatCurrency(this.currentPlayer.balance)}`,
+        buttons: ['OK']
+      });
+      await alert.present();
+      return;
+    }
+
+    // Conferma acquisto
+    const confirmation = await this.alertController.create({
+      header: 'Conferma Acquisto',
+      message: `Vuoi acquistare "${property.name}" per ${this.gameService.formatCurrency(property.price)}?\n\nIl tuo saldo diventerà: ${this.gameService.formatCurrency(this.currentPlayer.balance - property.price)}`,
       buttons: [
         {
           text: 'Annulla',
@@ -266,15 +248,13 @@ export class PropertiesModalComponent implements OnInit {
         },
         {
           text: 'Acquista',
-          handler: async (playerId: any) => {
-            if (playerId) {
-              await this.executePurchase(property, playerId);
-            }
+          handler: async () => {
+            await this.executePurchase(property, this.currentPlayer!.id);
           }
         }
       ]
     });
-    await actionSheet.present();
+    await confirmation.present();
   }
 
   private async executePurchase(property: Property, playerId: number) {
@@ -293,19 +273,13 @@ export class PropertiesModalComponent implements OnInit {
       this.ownedPropertyIds.add(property.id);
       this.updateAvailableProperties();
 
-      // AGGIUNGI QUESTO: aggiorna la lista dei giocatori (e quindi i saldi)
-      this.loadPlayers();
-
-      // Se stai visualizzando le proprietà del giocatore che ha acquistato, aggiornale
-      if (this.selectedPlayerId === playerId) {
-        await this.loadPlayerProperties();
-      }
+      // Ricarica le proprietà del giocatore corrente
+      await this.loadCurrentPlayerProperties();
 
       // Show success message
-      const player = this.players.find(p => p.id === playerId);
       const successAlert = await this.alertController.create({
         header: 'Acquisto Completato',
-        message: `${player?.name} ha acquistato "${property.name}"!`,
+        message: `Hai acquistato "${property.name}"!`,
         buttons: ['OK']
       });
       await successAlert.present();
@@ -323,6 +297,29 @@ export class PropertiesModalComponent implements OnInit {
     }
   }
 
+  // ============================================
+  // Azioni proprietà (solo per giocatore corrente)
+  // ============================================
+  async buildHouse(ownership: PropertyOwnership) {
+    const houseCost = this.getHouseCost(ownership.colorGroup);
+    const confirmation = await this.alertController.create({
+      header: 'Costruisci Casa',
+      message: `Vuoi costruire una casa su "${ownership.propertyName}"?\nCosto: ${this.gameService.formatCurrency(houseCost)}`,
+      buttons: [
+        {
+          text: 'Annulla',
+          role: 'cancel'
+        },
+        {
+          text: 'Costruisci',
+          handler: async () => {
+            await this.executeBuildHouse(ownership);
+          }
+        }
+      ]
+    });
+    await confirmation.present();
+  }
 
   private async executeBuildHouse(ownership: PropertyOwnership) {
     const loading = await this.loadingController.create({
@@ -332,7 +329,7 @@ export class PropertiesModalComponent implements OnInit {
 
     try {
       await firstValueFrom(this.apiService.buildHouse(ownership.id));
-      await this.loadPlayerProperties();
+      await this.loadCurrentPlayerProperties();
 
       const alert = await this.alertController.create({
         header: 'Casa Costruita',
@@ -381,7 +378,7 @@ export class PropertiesModalComponent implements OnInit {
 
     try {
       await firstValueFrom(this.apiService.buildHotel(ownership.id));
-      await this.loadPlayerProperties();
+      await this.loadCurrentPlayerProperties();
 
       const alert = await this.alertController.create({
         header: 'Hotel Costruito',
@@ -432,7 +429,7 @@ export class PropertiesModalComponent implements OnInit {
 
     try {
       await firstValueFrom(this.apiService.mortgageProperty(ownership.id));
-      await this.loadPlayerProperties();
+      await this.loadCurrentPlayerProperties();
 
       const alert = await this.alertController.create({
         header: 'Proprietà Ipotecata',
@@ -483,7 +480,7 @@ export class PropertiesModalComponent implements OnInit {
 
     try {
       await firstValueFrom(this.apiService.redeemProperty(ownership.id));
-      await this.loadPlayerProperties();
+      await this.loadCurrentPlayerProperties();
 
       const alert = await this.alertController.create({
         header: 'Proprietà Riscattata',
@@ -504,40 +501,6 @@ export class PropertiesModalComponent implements OnInit {
     }
   }
 
-  getPropertyTypeLabel(type: PropertyType): string {
-    const labels: { [key in PropertyType]: string } = {
-      [PropertyType.STREET]: 'Strada',
-      [PropertyType.RAILROAD]: 'Stazione',
-      [PropertyType.UTILITY]: 'Società',
-      [PropertyType.SPECIAL]: 'Speciale'
-    };
-    return labels[type] || type;
-  }
-
-  getHousesArray(count: number): number[] {
-    return Array(count).fill(0);
-  }
-
-  getPropertyColorHex(colorGroup: string): string {
-    const colorMap: { [key: string]: string } = {
-      'BROWN': '#8b4513',
-      'LIGHT_BLUE': '#87ceeb',
-      'PINK': '#ff69b4',
-      'ORANGE': '#ff8c00',
-      'RED': '#dc143c',
-      'YELLOW': '#ffd700',
-      'GREEN': '#228b22',
-      'DARK_BLUE': '#191970'
-    };
-    return colorMap[colorGroup] || '#6b7280';
-  }
-
-  // src/app/components/properties/properties-modal/properties-modal.component.ts
-  // AGGIUNGI QUESTE NUOVE FUNZIONI AL TUO COMPONENTE ESISTENTE:
-
-  /**
-   * NUOVO: Vendita casa
-   */
   async sellHouse(ownership: PropertyOwnership) {
     const houseCost = this.getHouseCost(ownership.colorGroup);
     const sellPrice = houseCost / 2;
@@ -569,7 +532,7 @@ export class PropertiesModalComponent implements OnInit {
 
     try {
       await firstValueFrom(this.apiService.sellHouse(ownership.id));
-      await this.loadPlayerProperties();
+      await this.loadCurrentPlayerProperties();
 
       const alert = await this.alertController.create({
         header: 'Casa Venduta',
@@ -590,9 +553,6 @@ export class PropertiesModalComponent implements OnInit {
     }
   }
 
-  /**
-   * NUOVO: Vendita hotel
-   */
   async sellHotel(ownership: PropertyOwnership) {
     const hotelCost = this.getHouseCost(ownership.colorGroup);
     const sellPrice = hotelCost / 2;
@@ -624,7 +584,7 @@ export class PropertiesModalComponent implements OnInit {
 
     try {
       await firstValueFrom(this.apiService.sellHotel(ownership.id));
-      await this.loadPlayerProperties();
+      await this.loadCurrentPlayerProperties();
 
       const alert = await this.alertController.create({
         header: 'Hotel Venduto',
@@ -645,11 +605,26 @@ export class PropertiesModalComponent implements OnInit {
     }
   }
 
-  /**
-   * NUOVO: Trasferimento proprietà
-   */
+  // ============================================
+  // MODIFICATO: Trasferimento solo tra giocatori diversi
+  // ============================================
   async transferProperty(ownership: PropertyOwnership) {
-    const availablePlayers = this.players.filter(p => p.id !== ownership.id);
+    // Ottieni la sessione corrente per trovare gli altri giocatori
+    const session = await new Promise<any>((resolve) => {
+      this.gameService.getCurrentSession().subscribe(session => resolve(session));
+    });
+
+    if (!session?.players) {
+      const alert = await this.alertController.create({
+        header: 'Errore',
+        message: 'Sessione non disponibile',
+        buttons: ['OK']
+      });
+      await alert.present();
+      return;
+    }
+
+    const availablePlayers = session.players.filter((p: any) => p.id !== this.currentPlayer?.id);
 
     if (availablePlayers.length === 0) {
       const alert = await this.alertController.create({
@@ -672,7 +647,7 @@ export class PropertiesModalComponent implements OnInit {
           value: '',
           checked: false
         },
-        ...availablePlayers.map(player => ({
+        ...availablePlayers.map((player: any) => ({
           name: 'newOwnerId',
           type: 'radio' as const,
           label: `${player.name} (${this.gameService.formatCurrency(player.balance)})`,
@@ -714,12 +689,11 @@ export class PropertiesModalComponent implements OnInit {
       await firstValueFrom(this.apiService.transferProperty(ownership.id, newOwnerId, price));
 
       await this.loadOwnedProperties();
-      this.loadPlayers();
+      await this.loadCurrentPlayerProperties();
 
-      const newOwner = this.players.find(p => p.id === newOwnerId);
       const alert = await this.alertController.create({
         header: 'Proprietà Trasferita',
-        message: `"${ownership.propertyName}" è stata trasferita a ${newOwner?.name}!`,
+        message: `"${ownership.propertyName}" è stata trasferita con successo!`,
         buttons: ['OK']
       });
       await alert.present();
@@ -736,9 +710,37 @@ export class PropertiesModalComponent implements OnInit {
     }
   }
 
-  /**
-   * NUOVO: Calcola costo casa per gruppo colore
-   */
+  // ============================================
+  // Utility functions
+  // ============================================
+  getPropertyTypeLabel(type: PropertyType): string {
+    const labels: { [key in PropertyType]: string } = {
+      [PropertyType.STREET]: 'Strada',
+      [PropertyType.RAILROAD]: 'Stazione',
+      [PropertyType.UTILITY]: 'Società',
+      [PropertyType.SPECIAL]: 'Speciale'
+    };
+    return labels[type] || type;
+  }
+
+  getHousesArray(count: number): number[] {
+    return Array(count).fill(0);
+  }
+
+  getPropertyColorHex(colorGroup: string): string {
+    const colorMap: { [key: string]: string } = {
+      'BROWN': '#8b4513',
+      'LIGHT_BLUE': '#87ceeb',
+      'PINK': '#ff69b4',
+      'ORANGE': '#ff8c00',
+      'RED': '#dc143c',
+      'YELLOW': '#ffd700',
+      'GREEN': '#228b22',
+      'DARK_BLUE': '#191970'
+    };
+    return colorMap[colorGroup] || '#6b7280';
+  }
+
   private getHouseCost(colorGroup: string): number {
     const costs: { [key: string]: number } = {
       'BROWN': 50,
@@ -751,28 +753,6 @@ export class PropertiesModalComponent implements OnInit {
       'DARK_BLUE': 200
     };
     return costs[colorGroup] || 100;
-  }
-
-  // AGGIORNA la funzione buildHouse esistente per mostrare il costo:
-  async buildHouse(ownership: PropertyOwnership) {
-    const houseCost = this.getHouseCost(ownership.colorGroup);
-    const confirmation = await this.alertController.create({
-      header: 'Costruisci Casa',
-      message: `Vuoi costruire una casa su "${ownership.propertyName}"?\nCosto: ${this.gameService.formatCurrency(houseCost)}`,
-      buttons: [
-        {
-          text: 'Annulla',
-          role: 'cancel'
-        },
-        {
-          text: 'Costruisci',
-          handler: async () => {
-            await this.executeBuildHouse(ownership);
-          }
-        }
-      ]
-    });
-    await confirmation.present();
   }
 
   async dismiss() {

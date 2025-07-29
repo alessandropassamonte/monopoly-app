@@ -1,5 +1,5 @@
 <!-- src/app/components/properties/properties-modal/properties-modal.component.html -->
-<!-- VERSIONE AGGIORNATA - limitata al giocatore corrente -->
+<!-- VERSIONE AGGIORNATA - con funzionalità di ricerca -->
 
 <ion-header>
   <ion-toolbar style="--background: linear-gradient(135deg, #805ad5 0%, #6b46c1 100%); 
@@ -78,17 +78,49 @@
 
     <!-- Available Properties -->
     <div *ngIf="selectedSegment === 'available'">
-      <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1.5rem;">
-        <div style="width: 4px; height: 2rem; background: linear-gradient(135deg, #48bb78 0%, #38a169 100%); 
-                    border-radius: 2px;"></div>
-        <h3 style="font-family: 'Trebuchet MS', Arial, sans-serif; 
-                   color: #2d3748; margin: 0; font-size: 1.3rem; font-weight: bold;">
-          🏪 Proprietà Disponibili ({{availableProperties.length}})
-        </h3>
+      
+      <!-- Header con Ricerca -->
+      <div style="margin-bottom: 1.5rem;">
+        <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem;">
+          <div style="width: 4px; height: 2rem; background: linear-gradient(135deg, #48bb78 0%, #38a169 100%); 
+                      border-radius: 2px;"></div>
+          <h3 style="font-family: 'Trebuchet MS', Arial, sans-serif; 
+                     color: #2d3748; margin: 0; font-size: 1.3rem; font-weight: bold; flex: 1;">
+            🏪 Proprietà Disponibili ({{filteredAvailableProperties.length}}/{{availableProperties.length}})
+          </h3>
+        </div>
+
+        <!-- NUOVO: Barra di ricerca per proprietà disponibili -->
+        <div style="position: relative; margin-bottom: 1rem;">
+          <ion-searchbar [(ngModel)]="searchTerm"
+                         (ionInput)="onSearchTermChange()"
+                         placeholder="🔍 Cerca proprietà per nome, tipo o colore..."
+                         show-clear-button="focus"
+                         style="--background: white; --border-radius: 15px; 
+                                --box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1); 
+                                --color: #2d3748; --placeholder-color: #4a5568;
+                                --icon-color: #3182ce; --clear-button-color: #3182ce;">
+          </ion-searchbar>
+          
+          <!-- Suggerimenti di ricerca -->
+          <div *ngIf="searchTerm.length > 0 && filteredAvailableProperties.length === 0" 
+               style="background: #fed7d7; color: #9b2c2c; padding: 1rem; 
+                      border-radius: 10px; text-align: center; margin-top: 0.5rem;">
+            <ion-icon name="search-outline" style="font-size: 1.5rem; margin-bottom: 0.5rem; display: block;"></ion-icon>
+            <p style="margin: 0; font-size: 0.9rem;">
+              Nessuna proprietà trovata per "<strong>{{searchTerm}}</strong>"
+            </p>
+            <button (click)="clearSearch()" 
+                    style="background: transparent; border: 1px solid #9b2c2c; color: #9b2c2c; 
+                           padding: 0.5rem 1rem; border-radius: 8px; margin-top: 0.5rem; cursor: pointer;">
+              Pulisci ricerca
+            </button>
+          </div>
+        </div>
       </div>
 
       <!-- Empty State -->
-      <div *ngIf="availableProperties.length === 0" 
+      <div *ngIf="filteredAvailableProperties.length === 0 && searchTerm.length === 0" 
            style="text-align: center; padding: 4rem 2rem; 
                   background: white; border-radius: 20px; 
                   box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);">
@@ -101,8 +133,8 @@
 
       <!-- Properties Grid -->
       <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); 
-                  gap: 1.5rem;" *ngIf="availableProperties.length > 0">
-        <div *ngFor="let property of availableProperties" 
+                  gap: 1.5rem;" *ngIf="filteredAvailableProperties.length > 0">
+        <div *ngFor="let property of filteredAvailableProperties" 
              [style]="'background: white; border-radius: 20px; padding: 1.5rem; 
                       box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1); 
                       border-top: 6px solid ' + getPropertyColorHex(property.colorGroup) + '; 
@@ -153,7 +185,7 @@
               </div>
             </div>
 
-            <!-- Purchase Button (solo se il giocatore può permetterselo) -->
+            <!-- Purchase Button -->
             <button (click)="purchaseProperty(property)"
                     [disabled]="!currentPlayer || currentPlayer.balance < property.price"
                     [style]="'width: 100%; border: none; border-radius: 12px; padding: 1rem; 
@@ -181,13 +213,45 @@
 
     <!-- Current Player's Properties -->
     <div *ngIf="selectedSegment === 'owned'">
-      <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1.5rem;">
-        <div style="width: 4px; height: 2rem; background: linear-gradient(135deg, #3182ce 0%, #2c5aa0 100%); 
-                    border-radius: 2px;"></div>
-        <h3 style="font-family: 'Trebuchet MS', Arial, sans-serif; 
-                   color: #2d3748; margin: 0; font-size: 1.3rem; font-weight: bold;">
-          🔑 Le Tue Proprietà ({{currentPlayerProperties.length}})
-        </h3>
+      
+      <!-- Header con Ricerca -->
+      <div style="margin-bottom: 1.5rem;">
+        <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem;">
+          <div style="width: 4px; height: 2rem; background: linear-gradient(135deg, #3182ce 0%, #2c5aa0 100%); 
+                      border-radius: 2px;"></div>
+          <h3 style="font-family: 'Trebuchet MS', Arial, sans-serif; 
+                     color: #2d3748; margin: 0; font-size: 1.3rem; font-weight: bold; flex: 1;">
+            🔑 Le Tue Proprietà ({{filteredCurrentPlayerProperties.length}}/{{currentPlayerProperties.length}})
+          </h3>
+        </div>
+
+        <!-- NUOVO: Barra di ricerca per proprietà possedute -->
+        <div *ngIf="currentPlayerProperties.length > 0" style="position: relative; margin-bottom: 1rem;">
+          <ion-searchbar [(ngModel)]="ownedSearchTerm"
+                         (ionInput)="onOwnedSearchTermChange()"
+                         placeholder="🔍 Cerca tra le tue proprietà..."
+                         show-clear-button="focus"
+                         style="--background: white; --border-radius: 15px; 
+                                --box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1); 
+                                --color: #2d3748; --placeholder-color: #4a5568;
+                                --icon-color: #3182ce; --clear-button-color: #3182ce;">
+          </ion-searchbar>
+          
+          <!-- Suggerimenti di ricerca -->
+          <div *ngIf="ownedSearchTerm.length > 0 && filteredCurrentPlayerProperties.length === 0" 
+               style="background: #fed7d7; color: #9b2c2c; padding: 1rem; 
+                      border-radius: 10px; text-align: center; margin-top: 0.5rem;">
+            <ion-icon name="search-outline" style="font-size: 1.5rem; margin-bottom: 0.5rem; display: block;"></ion-icon>
+            <p style="margin: 0; font-size: 0.9rem;">
+              Nessuna proprietà trovata per "<strong>{{ownedSearchTerm}}</strong>"
+            </p>
+            <button (click)="clearOwnedSearch()" 
+                    style="background: transparent; border: 1px solid #9b2c2c; color: #9b2c2c; 
+                           padding: 0.5rem 1rem; border-radius: 8px; margin-top: 0.5rem; cursor: pointer;">
+              Pulisci ricerca
+            </button>
+          </div>
+        </div>
       </div>
 
       <!-- Empty State for Current Player Properties -->
@@ -209,10 +273,10 @@
       </div>
 
       <!-- Current Player Properties Grid -->
-      <div *ngIf="currentPlayerProperties.length > 0" 
+      <div *ngIf="filteredCurrentPlayerProperties.length > 0" 
            style="display: grid; grid-template-columns: repeat(auto-fill, minmax(350px, 1fr)); 
                   gap: 1.5rem;">
-        <div *ngFor="let ownership of currentPlayerProperties" 
+        <div *ngFor="let ownership of filteredCurrentPlayerProperties" 
              [style]="'background: white; border-radius: 20px; padding: 1.5rem; 
                       box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1); 
                       border-top: 6px solid ' + getPropertyColorHex(ownership.colorGroup) + '; 
@@ -393,6 +457,11 @@
 </ion-content>
 
 <style>
+  /* Stili per la ricerca */
+  ion-searchbar {
+    padding: 0 !important;
+  }
+
   @media (max-width: 768px) {
     .properties-grid {
       grid-template-columns: 1fr !important;

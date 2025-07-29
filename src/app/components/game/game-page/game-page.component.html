@@ -1,5 +1,5 @@
 <!-- src/app/components/game/game-page/game-page.component.html -->
-<!-- VERSIONE AGGIORNATA con interfaccia semplificata -->
+<!-- VERSIONE AGGIORNATA con funzionalità migliorate -->
 
 <ion-header>
   <ion-toolbar color="primary">
@@ -20,7 +20,7 @@
 
   <div style="padding: 1rem; max-width: 1200px; margin: 0 auto;">
 
-    <!-- Current Player Indicator -->
+    <!-- Current Player Indicator - FIXED: Ora si aggiorna correttamente -->
     <div *ngIf="currentPlayer" style="background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%); 
                 color: white; border-radius: 15px; padding: 1.5rem; margin-bottom: 2rem; 
                 box-shadow: 0 8px 25px rgba(251, 191, 36, 0.3); text-align: center;">
@@ -33,6 +33,7 @@
         <div>
           <h2 style="margin: 0 0 0.5rem 0; font-size: 1.5rem; font-weight: bold;">
             {{currentPlayer.name}}
+            <span *ngIf="currentPlayer.host" style="color: rgba(255,255,255,0.9); font-size: 0.8rem; margin-left: 0.5rem;">👑 HOST</span>
           </h2>
           <div style="font-size: 1.8rem; font-weight: bold; font-family: 'Courier New', monospace;">
             {{gameService.formatCurrency(currentPlayer.balance)}}
@@ -125,7 +126,7 @@
       <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); 
                   gap: 1rem;">
 
-        <!-- MODIFICATO: Trasferimento semplificato -->
+        <!-- Trasferimento Denaro -->
         <button (click)="showTransferModal()" 
                 [disabled]="!currentPlayer"
                 style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
@@ -147,7 +148,7 @@
           </div>
         </button>
 
-        <!-- MODIFICATO: Ricevi dalla banca (semplificato) -->
+        <!-- Ricevi dalla Banca -->
         <button (click)="showBankPaymentFromBankModal()" 
                 [disabled]="!currentPlayer"
                 style="background: linear-gradient(135deg, #48bb78 0%, #38a169 100%); 
@@ -169,7 +170,7 @@
           </div>
         </button>
 
-        <!-- MODIFICATO: Paga alla banca (semplificato) -->
+        <!-- Paga alla Banca -->
         <button (click)="showBankPaymentToBankModal()" 
                 [disabled]="!currentPlayer"
                 style="background: linear-gradient(135deg, #ed8936 0%, #dd6b20 100%); 
@@ -191,7 +192,7 @@
           </div>
         </button>
 
-        <!-- AGGIORNATO: Gestione proprietà (giocatore corrente) -->
+        <!-- Gestione Proprietà -->
         <button (click)="showPropertiesModal()" 
                 [disabled]="!currentPlayer"
                 style="background: linear-gradient(135deg, #805ad5 0%, #6b46c1 100%); 
@@ -208,12 +209,12 @@
             </div>
             <div>
               <h4 style="margin: 0 0 0.3rem 0; font-size: 1.1rem; font-weight: bold;">Le Tue Proprietà</h4>
-              <p style="margin: 0; font-size: 0.9rem; opacity: 0.9;">Compra, costruisci, ipoteca</p>
+              <p style="margin: 0; font-size: 0.9rem; opacity: 0.9;">🔍 Compra, costruisci, cerca</p>
             </div>
           </div>
         </button>
 
-        <!-- MODIFICATO: Pagamento affitto con lista -->
+        <!-- NUOVO: Pagamento Affitto Migliorato -->
         <button (click)="showRentPaymentModal()" 
                 [disabled]="!currentPlayer"
                 style="background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%); 
@@ -230,7 +231,29 @@
             </div>
             <div>
               <h4 style="margin: 0 0 0.3rem 0; font-size: 1.1rem; font-weight: bold;">Paga Affitto</h4>
-              <p style="margin: 0; font-size: 0.9rem; opacity: 0.9;">Scegli proprietà dalla lista</p>
+              <p style="margin: 0; font-size: 0.9rem; opacity: 0.9;">🎯 Scegli giocatore e proprietà</p>
+            </div>
+          </div>
+        </button>
+
+        <!-- NUOVO: Trasferimento Multiplo Proprietà -->
+        <button (click)="showMultiPropertyTransferModal()" 
+                [disabled]="!currentPlayer"
+                style="background: linear-gradient(135deg, #059669 0%, #047857 100%); 
+                       color: white; border: none; border-radius: 15px; padding: 1.5rem; 
+                       text-align: left; cursor: pointer; transition: all 0.3s ease; 
+                       box-shadow: 0 4px 15px rgba(5, 150, 105, 0.3);"
+                [style.opacity]="currentPlayer ? '1' : '0.5'"
+                onmouseover="if (this.style.opacity === '1') { this.style.transform='translateY(-5px)'; this.style.boxShadow='0 8px 25px rgba(5, 150, 105, 0.4)'; }"
+                onmouseout="this.style.transform='translateY(0px)'; this.style.boxShadow='0 4px 15px rgba(5, 150, 105, 0.3)';">
+          <div style="display: flex; align-items: center; gap: 1rem;">
+            <div style="width: 50px; height: 50px; background: rgba(255,255,255,0.2); 
+                        border-radius: 12px; display: flex; align-items: center; justify-content: center;">
+              <ion-icon name="git-branch" style="font-size: 1.5rem;"></ion-icon>
+            </div>
+            <div>
+              <h4 style="margin: 0 0 0.3rem 0; font-size: 1.1rem; font-weight: bold;">Scambio Negoziato</h4>
+              <p style="margin: 0; font-size: 0.9rem; opacity: 0.9;">💰 Più proprietà + denaro</p>
             </div>
           </div>
         </button>
@@ -250,7 +273,7 @@
             </div>
             <div>
               <h4 style="margin: 0 0 0.3rem 0; font-size: 1.1rem; font-weight: bold;">Analisi Patrimonio</h4>
-              <p style="margin: 0; font-size: 0.9rem; opacity: 0.9;">Patrimonio, liquidazioni, bancarotta</p>
+              <p style="margin: 0; font-size: 0.9rem; opacity: 0.9;">📊 Patrimonio, liquidazioni, bancarotta</p>
             </div>
           </div>
         </button>
@@ -360,6 +383,21 @@
     }
   }
 
+  /* NUOVO: Stili aggiuntivi per le nuove funzionalità */
+  .multi-transfer-modal {
+    --width: 95%;
+    --max-width: 600px;
+    --height: 85%;
+    --border-radius: 20px;
+  }
+
+  .rent-properties-modal {
+    --width: 90%;
+    --max-width: 500px;
+    --height: 75%;
+    --border-radius: 15px;
+  }
+
   @media (max-width: 768px) {
     .players-grid {
       grid-template-columns: 1fr !important;
@@ -367,6 +405,13 @@
 
     .action-buttons {
       grid-template-columns: 1fr !important;
+    }
+
+    .multi-transfer-modal,
+    .rent-properties-modal {
+      --width: 100%;
+      --height: 100%;
+      --border-radius: 0px;
     }
   }
 
@@ -377,6 +422,14 @@
 
     .transaction-amount {
       font-size: 1rem !important;
+    }
+
+    .current-player-indicator {
+      padding: 1rem !important;
+    }
+
+    .action-button {
+      padding: 1.2rem !important;
     }
   }
 </style>

@@ -1,5 +1,4 @@
-// src/app/components/properties/properties-modal/properties-modal.component.ts
-// VERSIONE AGGIORNATA - limitata al giocatore corrente
+
 
 import { Component, OnInit, Input } from '@angular/core';
 import { FormsModule } from '@angular/forms';
@@ -20,14 +19,20 @@ import { CommonModule } from '@angular/common';
   styleUrls: ['./properties-modal.component.scss']
 })
 export class PropertiesModalComponent implements OnInit {
-  @Input() currentPlayerOnly: boolean = true; // Nuovo parametro per limitare al giocatore corrente
+  @Input() currentPlayerOnly: boolean = true;
   
   selectedSegment = 'available';
   availableProperties: Property[] = [];
+  filteredAvailableProperties: Property[] = []; // NUOVO: Lista filtrata
   allProperties: Property[] = [];
   currentPlayerProperties: PropertyOwnership[] = [];
+  filteredCurrentPlayerProperties: PropertyOwnership[] = []; // NUOVO: Lista filtrata
   currentPlayer: Player | null = null;
   ownedPropertyIds: Set<number> = new Set();
+
+  // NUOVO: Variabili per la ricerca
+  searchTerm: string = '';
+  ownedSearchTerm: string = '';
 
   // Loading states
   isLoadingProperties = false;
@@ -42,7 +47,7 @@ export class PropertiesModalComponent implements OnInit {
   ) { }
 
   async ngOnInit() {
-    console.log('=== PROPERTIES MODAL INIT (Current Player Only Mode) ===');
+    console.log('=== PROPERTIES MODAL INIT (With Search) ===');
     await this.initializeModal();
   }
 
@@ -160,12 +165,16 @@ export class PropertiesModalComponent implements OnInit {
       property => !this.ownedPropertyIds.has(property.id)
     );
     console.log('Available properties after filter:', this.availableProperties.length);
+    
+    // AGGIUNTO: Applica filtro di ricerca
+    this.applyAvailablePropertiesFilter();
   }
 
   async loadCurrentPlayerProperties() {
     if (!this.currentPlayer) {
       console.log('No current player, clearing properties');
       this.currentPlayerProperties = [];
+      this.filteredCurrentPlayerProperties = [];
       return;
     }
 
@@ -182,9 +191,13 @@ export class PropertiesModalComponent implements OnInit {
         console.log(`- ${p.propertyName}: ${p.houses} houses, hotel: ${p.hasHotel}, mortgaged: ${p.isMortgaged}`)
       );
 
+      // AGGIUNTO: Applica filtro di ricerca
+      this.applyOwnedPropertiesFilter();
+
     } catch (error) {
       console.error('Error loading current player properties:', error);
       this.currentPlayerProperties = [];
+      this.filteredCurrentPlayerProperties = [];
 
       const errorAlert = await this.alertController.create({
         header: 'Errore',
@@ -209,7 +222,83 @@ export class PropertiesModalComponent implements OnInit {
   }
 
   // ============================================
-  // MODIFICATO: Acquisto limitato al giocatore corrente
+  // NUOVO: Metodi per la ricerca
+  // ============================================
+  
+  /**
+   * Applica il filtro di ricerca alle proprietà disponibili
+   */
+  applyAvailablePropertiesFilter() {
+    if (!this.searchTerm.trim()) {
+      this.filteredAvailableProperties = [...this.availableProperties];
+      return;
+    }
+
+    const term = this.searchTerm.toLowerCase().trim();
+    this.filteredAvailableProperties = this.availableProperties.filter(property => {
+      return property.name.toLowerCase().includes(term) ||
+             property.colorGroup.toLowerCase().includes(term) ||
+             property.type.toLowerCase().includes(term) ||
+             this.getPropertyTypeLabel(property.type).toLowerCase().includes(term);
+    });
+
+    console.log(`Filtered available properties: ${this.filteredAvailableProperties.length}/${this.availableProperties.length}`);
+  }
+
+  /**
+   * Applica il filtro di ricerca alle proprietà possedute
+   */
+  applyOwnedPropertiesFilter() {
+    if (!this.ownedSearchTerm.trim()) {
+      this.filteredCurrentPlayerProperties = [...this.currentPlayerProperties];
+      return;
+    }
+
+    const term = this.ownedSearchTerm.toLowerCase().trim();
+    this.filteredCurrentPlayerProperties = this.currentPlayerProperties.filter(property => {
+      return property.propertyName.toLowerCase().includes(term) ||
+             property.colorGroup.toLowerCase().includes(term) ||
+             property.propertyType.toLowerCase().includes(term) ||
+             this.getPropertyTypeLabel(property.propertyType).toLowerCase().includes(term);
+    });
+
+    console.log(`Filtered owned properties: ${this.filteredCurrentPlayerProperties.length}/${this.currentPlayerProperties.length}`);
+  }
+
+  /**
+   * Handler per il cambiamento del termine di ricerca (proprietà disponibili)
+   */
+  onSearchTermChange() {
+    console.log('Search term changed:', this.searchTerm);
+    this.applyAvailablePropertiesFilter();
+  }
+
+  /**
+   * Handler per il cambiamento del termine di ricerca (proprietà possedute)
+   */
+  onOwnedSearchTermChange() {
+    console.log('Owned search term changed:', this.ownedSearchTerm);
+    this.applyOwnedPropertiesFilter();
+  }
+
+  /**
+   * Pulisce il filtro di ricerca
+   */
+  clearSearch() {
+    this.searchTerm = '';
+    this.applyAvailablePropertiesFilter();
+  }
+
+  /**
+   * Pulisce il filtro di ricerca per proprietà possedute
+   */
+  clearOwnedSearch() {
+    this.ownedSearchTerm = '';
+    this.applyOwnedPropertiesFilter();
+  }
+
+  // ============================================
+  // Acquisto proprietà (invariato)
   // ============================================
   async purchaseProperty(property: Property) {
     if (!this.currentPlayer) {
@@ -298,7 +387,7 @@ export class PropertiesModalComponent implements OnInit {
   }
 
   // ============================================
-  // Azioni proprietà (solo per giocatore corrente)
+  // Azioni proprietà (invariate)
   // ============================================
   async buildHouse(ownership: PropertyOwnership) {
     const houseCost = this.getHouseCost(ownership.colorGroup);
@@ -606,7 +695,7 @@ export class PropertiesModalComponent implements OnInit {
   }
 
   // ============================================
-  // MODIFICATO: Trasferimento solo tra giocatori diversi
+  // Trasferimento proprietà (invariato)
   // ============================================
   async transferProperty(ownership: PropertyOwnership) {
     // Ottieni la sessione corrente per trovare gli altri giocatori
@@ -747,7 +836,7 @@ export class PropertiesModalComponent implements OnInit {
       'LIGHT_BLUE': 50,
       'PINK': 100,
       'ORANGE': 100,
-      'RED': 150,
+      'RED': 150,  
       'YELLOW': 150,
       'GREEN': 200,
       'DARK_BLUE': 200

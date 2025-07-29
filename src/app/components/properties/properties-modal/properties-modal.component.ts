@@ -712,7 +712,6 @@ export class PropertiesModalComponent implements OnInit {
       return;
     }
 
-    // CORREZIONE: Ottieni la sessione corrente tramite gameService
     try {
       const session = await new Promise<any>((resolve, reject) => {
         this.gameService.getCurrentSession().subscribe({
@@ -749,8 +748,8 @@ export class PropertiesModalComponent implements OnInit {
         return;
       }
 
-      // Continua con il modal di trasferimento
-      await this.showSingleTransferModal(ownership, availablePlayers);
+      // CORREZIONE: Modal semplificato senza stili inline
+      await this.showSimpleTransferModal(ownership, availablePlayers);
 
     } catch (error) {
       console.error('Error getting current session:', error);
@@ -763,61 +762,55 @@ export class PropertiesModalComponent implements OnInit {
     }
   }
 
-  private async showSingleTransferModal(ownership: PropertyOwnership, availablePlayers: any[]) {
+  // NUOVO: Modal semplificato senza stili CSS inline problematici
+  private async showSimpleTransferModal(ownership: PropertyOwnership, availablePlayers: any[]) {
     const alert = await this.alertController.create({
-      header: `🔄 Trasferisci "${ownership.propertyName}"`,
-      message: `Valore proprietà: ${this.gameService.formatCurrency(ownership.propertyPrice)}\n${ownership.isMortgaged ? '⚠️ PROPRIETÀ IPOTECATA' : ''}`,
+      header: 'Trasferisci Proprietà',
+      message: `Trasferimento di: ${ownership.propertyName}\nValore: ${this.gameService.formatCurrency(ownership.propertyPrice)}${ownership.isMortgaged ? '\n⚠️ PROPRIETÀ IPOTECATA' : ''}`,
       inputs: [
-        // Sezione destinatario
+        // Header destinatario - SENZA stili
         {
           name: 'destinatario-header',
           type: 'text',
-          value: '🎯 SELEZIONA DESTINATARIO',
-          disabled: true,
-          attributes: {
-            readonly: true,
-            style: 'text-align: center; font-weight: bold; background: #e3f2fd; border: none; color: #1976d2; margin-bottom: 0.5rem;'
-          }
+          value: '--- SELEZIONA DESTINATARIO ---',
+          disabled: true
         },
-        ...availablePlayers.map((player: any) => ({
+        // Destinatari
+        ...availablePlayers.map((player: any, index: number) => ({
           name: 'newOwnerId',
           type: 'radio' as const,
           label: `${player.name} (${this.gameService.formatCurrency(player.balance)})`,
-          value: `${player.id}`,
-          checked: false
+          value: player.id.toString(),
+          checked: index === 0 // Seleziona automaticamente il primo
         })),
 
-        // Separatore
+        // Header prezzo - SENZA stili
         {
-          name: 'separator',
+          name: 'price-header',
           type: 'text',
-          value: '💰 PREZZO (opzionale)',
-          disabled: true,
-          attributes: {
-            readonly: true,
-            style: 'text-align: center; font-weight: bold; background: #e8f5e8; border: none; color: #2e7d32; margin-top: 1rem; margin-bottom: 0.5rem;'
-          }
+          value: '--- SELEZIONA PREZZO ---',
+          disabled: true
         },
 
         // Opzioni prezzo
         {
           name: 'priceType',
           type: 'radio',
-          label: '🎁 Regalo (gratuito)',
+          label: 'Regalo (gratuito)',
           value: 'gift',
           checked: true
         },
         {
           name: 'priceType',
           type: 'radio',
-          label: '💎 Valore pieno proprietà',
+          label: 'Valore pieno proprietà',
           value: 'full',
           checked: false
         },
         {
           name: 'priceType',
           type: 'radio',
-          label: '💵 Prezzo personalizzato',
+          label: 'Prezzo personalizzato',
           value: 'custom',
           checked: false
         },
@@ -827,14 +820,15 @@ export class PropertiesModalComponent implements OnInit {
           name: 'customPrice',
           type: 'number',
           placeholder: 'Inserisci prezzo personalizzato',
-          min: 0
+          min: 0,
+          value: 0
         },
 
         // Descrizione
         {
           name: 'description',
           type: 'text',
-          placeholder: 'Motivo del trasferimento (opzionale)',
+          placeholder: 'Motivo del trasferimento',
           value: `Trasferimento ${ownership.propertyName}`
         }
       ],
@@ -847,13 +841,238 @@ export class PropertiesModalComponent implements OnInit {
           text: 'Trasferisci',
           handler: async (data) => {
             console.log('=== TRANSFER FORM DATA ===', data);
-            const result = await this.validateAndExecuteSingleTransfer(data, ownership, availablePlayers);
-            return result; // true = chiude modal, false = mantiene aperto
+            return await this.validateAndExecuteSimpleTransfer(data, ownership, availablePlayers);
           }
         }
       ]
     });
     await alert.present();
+  }
+
+  private async validateAndExecuteSimpleTransfer(
+    data: any,
+    ownership: PropertyOwnership,
+    availablePlayers: any[]
+  ): Promise<boolean> {
+    console.log('=== VALIDATING SIMPLE TRANSFER ===', data);
+
+    // Validazione destinatario
+    if (!data.newOwnerId) {
+      const errorAlert = await this.alertController.create({
+        header: 'Errore',
+        message: 'Seleziona il giocatore destinatario.',
+        buttons: ['OK']
+      });
+      await errorAlert.present();
+      return false;
+    }
+
+    const newOwner = availablePlayers.find(p => p.id.toString() === data.newOwnerId);
+    if (!newOwner) {
+      const errorAlert = await this.alertController.create({
+        header: 'Errore',
+        message: 'Destinatario non trovato.',
+        buttons: ['OK']
+      });
+      await errorAlert.present();
+      return false;
+    }
+
+    // Calcolo prezzo
+    let price = 0;
+    switch (data.priceType) {
+      case 'gift':
+        price = 0;
+        break;
+      case 'full':
+        price = ownership.propertyPrice;
+        break;
+      case 'custom':
+        price = parseFloat(data.customPrice) || 0;
+        if (price < 0) {
+          const errorAlert = await this.alertController.create({
+            header: 'Prezzo Non Valido',
+            message: 'Il prezzo non può essere negativo.',
+            buttons: ['OK']
+          });
+          await errorAlert.present();
+          return false;
+        }
+        break;
+      default:
+        price = 0;
+    }
+
+    // Verifica fondi del destinatario
+    if (price > 0 && newOwner.balance < price) {
+      const errorAlert = await this.alertController.create({
+        header: 'Fondi Insufficienti',
+        message: `${newOwner.name} non ha abbastanza denaro (${this.gameService.formatCurrency(newOwner.balance)}) per acquistare la proprietà al prezzo di ${this.gameService.formatCurrency(price)}.`,
+        buttons: ['OK']
+      });
+      await errorAlert.present();
+      return false;
+    }
+
+    // Conferma
+    const confirmed = await this.showSimpleTransferConfirmation(ownership, newOwner, price, data.description);
+    if (!confirmed) {
+      return false;
+    }
+
+    // Esegui trasferimento
+    return await this.executeSimplePropertyTransfer(ownership, newOwner.id, price, data.description);
+  }
+
+  private async executeSimplePropertyTransfer(
+    ownership: PropertyOwnership,
+    newOwnerId: number,
+    price: number,
+    description: string
+  ): Promise<boolean> {
+
+    let loading: any = null;
+
+    try {
+      loading = await this.loadingController.create({
+        message: 'Trasferimento proprietà...'
+      });
+      await loading.present();
+
+      console.log('=== EXECUTING SIMPLE PROPERTY TRANSFER ===');
+      console.log('Ownership ID:', ownership.id);
+      console.log('New Owner ID:', newOwnerId);
+      console.log('Price:', price);
+
+      const result = await firstValueFrom(
+        this.apiService.transferProperty(
+          ownership.id,
+          newOwnerId,
+          price > 0 ? price : undefined,
+          description
+        )
+      );
+
+      console.log('✅ Transfer completed successfully:', result);
+
+      // Ricarica i dati
+      await this.loadOwnedProperties();
+      await this.loadCurrentPlayerProperties();
+
+      // Ottieni nome del nuovo proprietario
+      let newOwnerName = 'Giocatore';
+      try {
+        const session = await new Promise<any>((resolve) => {
+          this.gameService.getCurrentSession().subscribe(session => resolve(session));
+        });
+        const newOwner = session?.players?.find((p: any) => p.id === newOwnerId);
+        if (newOwner) {
+          newOwnerName = newOwner.name;
+        }
+      } catch (error) {
+        console.warn('Could not get new owner name:', error);
+      }
+
+      // Chiudi loading PRIMA dell'alert
+      if (loading) {
+        await loading.dismiss();
+        loading = null;
+      }
+
+      // Mostra successo
+      const alert = await this.alertController.create({
+        header: 'Trasferimento Completato',
+        message: `"${ownership.propertyName}" è stata trasferita con successo a ${newOwnerName}!`,
+        buttons: ['OK']
+      });
+      await alert.present();
+
+      return true;
+
+    } catch (error) {
+      console.error('❌ Transfer error:', error);
+
+      // Chiudi loading PRIMA dell'alert di errore
+      if (loading) {
+        await loading.dismiss();
+        loading = null;
+      }
+
+      let errorMessage = 'Errore durante il trasferimento.';
+      if (error && typeof error === 'object') {
+        if ((error as any).status === 400) {
+          errorMessage = (error as any).error?.message || 'Dati non validi o fondi insufficienti.';
+        } else if ((error as any).status === 404) {
+          errorMessage = 'Proprietà o giocatore non trovato.';
+        }
+      }
+
+      const alert = await this.alertController.create({
+        header: 'Errore Trasferimento',
+        message: errorMessage,
+        buttons: ['OK']
+      });
+      await alert.present();
+
+      return false;
+
+    } finally {
+      // Sicurezza: assicurati che loading sia sempre chiuso
+      if (loading) {
+        try {
+          await loading.dismiss();
+        } catch (e) {
+          console.warn('Error dismissing loading:', e);
+        }
+      }
+    }
+  }
+
+  // NUOVO: Conferma semplificata
+  private async showSimpleTransferConfirmation(
+    ownership: PropertyOwnership,
+    newOwner: any,
+    price: number,
+    description: string
+  ): Promise<boolean> {
+    let message = `CONFERMA TRASFERIMENTO\n\n`;
+    message += `Proprietà: ${ownership.propertyName}\n`;
+    message += `Da: ${this.currentPlayer?.name}\n`;
+    message += `A: ${newOwner.name}\n`;
+    message += `Valore proprietà: ${this.gameService.formatCurrency(ownership.propertyPrice)}\n`;
+
+    if (ownership.isMortgaged) {
+      message += `\n⚠️ PROPRIETÀ IPOTECATA\n`;
+      message += `${newOwner.name} dovrà pagare il 10% per mantenere l'ipoteca\n`;
+    }
+
+    if (price > 0) {
+      message += `\nPrezzo: ${this.gameService.formatCurrency(price)}`;
+    } else {
+      message += `\nTrasferimento gratuito`;
+    }
+
+    if (description && description.trim()) {
+      message += `\n\nDescrizione: ${description}`;
+    }
+
+    return new Promise(async (resolve) => {
+      const alert = await this.alertController.create({
+        header: 'Conferma Trasferimento',
+        message,
+        buttons: [
+          {
+            text: 'Annulla',
+            handler: () => resolve(false)
+          },
+          {
+            text: 'Conferma',
+            handler: () => resolve(true)
+          }
+        ]
+      });
+      await alert.present();
+    });
   }
   /**
    * NUOVO: Validazione ed esecuzione trasferimento singolo
@@ -923,18 +1142,21 @@ export class PropertiesModalComponent implements OnInit {
     description: string
   ): Promise<boolean> {
 
-    const loading = await this.loadingController.create({
-      message: 'Trasferimento proprietà...'
-    });
-    await loading.present();
+    let loading: any = null;
 
     try {
+      // Crea il loading con controllo
+      loading = await this.loadingController.create({
+        message: 'Trasferimento proprietà...'
+      });
+      await loading.present();
+
       console.log('=== EXECUTING SINGLE PROPERTY TRANSFER ===');
       console.log('Ownership ID:', ownership.id);
       console.log('New Owner ID:', newOwnerId);
       console.log('Price:', price);
 
-      // CORREZIONE: Usa il metodo API corretto
+      // CORREZIONE: Usa il metodo API corretto con gestione errore migliorata
       const result = await firstValueFrom(
         this.apiService.transferProperty(ownership.id, newOwnerId, price > 0 ? price : undefined, description)
       );
@@ -959,6 +1181,12 @@ export class PropertiesModalComponent implements OnInit {
         console.warn('Could not get new owner name:', error);
       }
 
+      // IMPORTANTE: Chiudi il loading PRIMA di mostrare l'alert
+      if (loading) {
+        await loading.dismiss();
+        loading = null; // Prevenire doppia chiusura
+      }
+
       // Mostra successo
       const alert = await this.alertController.create({
         header: '✅ Trasferimento Completato',
@@ -972,11 +1200,19 @@ export class PropertiesModalComponent implements OnInit {
     } catch (error) {
       console.error('❌ Single transfer error:', error);
 
+      // IMPORTANTE: Chiudi il loading PRIMA di mostrare l'errore
+      if (loading) {
+        await loading.dismiss();
+        loading = null; // Prevenire doppia chiusura
+      }
+
       let errorMessage = 'Errore durante il trasferimento.';
-      if (error.status === 400) {
-        errorMessage = error.error?.message || 'Dati non validi o fondi insufficienti.';
-      } else if (error.status === 404) {
-        errorMessage = 'Proprietà o giocatore non trovato.';
+      if (error && typeof error === 'object') {
+        if ((error as any).status === 400) {
+          errorMessage = (error as any).error?.message || 'Dati non validi o fondi insufficienti.';
+        } else if ((error as any).status === 404) {
+          errorMessage = 'Proprietà o giocatore non trovato.';
+        }
       }
 
       const alert = await this.alertController.create({
@@ -989,7 +1225,14 @@ export class PropertiesModalComponent implements OnInit {
       return false; // Mantiene aperto il modal
 
     } finally {
-      loading.dismiss();
+      // SICUREZZA: Assicurati che il loading sia sempre chiuso
+      if (loading) {
+        try {
+          await loading.dismiss();
+        } catch (e) {
+          console.warn('Error dismissing loading:', e);
+        }
+      }
     }
   }
 

@@ -407,15 +407,15 @@ export class GamePageComponent implements OnInit, OnDestroy {
     console.log('Owner:', owner.name);
     console.log('Properties:', properties.length);
 
-    // Creiamo una lista di opzioni per il radio
-    const propertyInputs = properties.map(prop => {
+    // Creiamo una lista di opzioni per il radio senza opzione vuota iniziale
+    const propertyInputs = properties.map((prop, index) => {
       const rentInfo = this.calculateDisplayRent(prop);
       return {
-        name: 'selectedProperty',
+        name: 'property', // CAMBIATO: usa un nome semplice senza conflitti
         type: 'radio' as const,
         label: `${prop.propertyName} - ${this.gameService.formatCurrency(rentInfo.rent)} ${rentInfo.description}`,
-        value: prop.propertyId.toString(), // IMPORTANTE: Convertiamo a stringa
-        checked: false
+        value: prop.propertyId.toString(),
+        checked: index === 0 // CAMBIATO: seleziona automaticamente la prima proprietà
       };
     });
 
@@ -423,31 +423,12 @@ export class GamePageComponent implements OnInit, OnDestroy {
       header: `Proprietà di ${owner.name}`,
       message: 'Seleziona la proprietà per pagare l\'affitto',
       inputs: [
-        // Prima opzione vuota per validazione
-        {
-          name: 'selectedProperty',
-          type: 'radio',
-          label: '--- Seleziona una proprietà ---',
-          value: '',
-          checked: true
-        },
         ...propertyInputs,
-        // Separatore
-        {
-          name: 'separator',
-          type: 'text',
-          value: '─────────────────────',
-          disabled: true,
-          attributes: {
-            readonly: true,
-            style: 'text-align: center; background: #f0f0f0; border: none;'
-          }
-        },
-        // Input per i dadi (solo per società)
+        // Input per i dadi (solo per società) - SENZA separatore con stili
         {
           name: 'diceRoll',
           type: 'number',
-          placeholder: 'Risultato dadi (2-12, per società)',
+          placeholder: 'Risultato dadi (2-12, default: 7)',
           value: 7,
           min: 2,
           max: 12
@@ -463,30 +444,46 @@ export class GamePageComponent implements OnInit, OnDestroy {
         {
           text: 'Paga Affitto',
           handler: async (data) => {
-            console.log('=== FORM DATA ===', data);
+            console.log('=== FORM DATA RECEIVED ===');
+            console.log('Full data object:', data);
+            console.log('Property selected:', data.property);
+            console.log('Dice roll:', data.diceRoll);
 
-            // Validazione
-            if (!data.selectedProperty || data.selectedProperty === '') {
+            // CORREZIONE: Usa il nome corretto del campo
+            if (!data.property) {
+              console.log('❌ No property selected');
               const errorAlert = await this.alertController.create({
-                header: 'Seleziona Proprietà',
-                message: 'Devi selezionare una proprietà per pagare l\'affitto.',
+                header: 'Errore Selezione',
+                message: 'Errore nella selezione della proprietà. Riprova.',
                 buttons: ['OK']
               });
               await errorAlert.present();
-              return false; // Impedisce la chiusura del modal
+              return false;
             }
 
             // Trova la proprietà selezionata
-            const selectedProp = properties.find(p => p.propertyId.toString() === data.selectedProperty);
+            const selectedPropertyId = data.property.toString();
+            const selectedProp = properties.find(p => p.propertyId.toString() === selectedPropertyId);
+
             if (!selectedProp) {
-              console.error('Property not found:', data.selectedProperty);
+              console.error('❌ Property not found for ID:', selectedPropertyId);
+              console.log('Available properties:', properties.map(p => ({ id: p.propertyId, name: p.propertyName })));
+
+              const errorAlert = await this.alertController.create({
+                header: 'Errore',
+                message: 'Proprietà selezionata non trovata. Riprova.',
+                buttons: ['OK']
+              });
+              await errorAlert.present();
               return false;
             }
+
+            console.log('✅ Property found:', selectedProp.propertyName);
 
             // Esegui il pagamento
             const diceRoll = parseInt(data.diceRoll) || 7;
             await this.executeRentPayment(selectedProp, diceRoll);
-            return true; // Permette la chiusura del modal
+            return true;
           }
         }
       ]
@@ -494,6 +491,7 @@ export class GamePageComponent implements OnInit, OnDestroy {
 
     await alert.present();
   }
+
 
   // Utility per calcolare affitto da mostrare
   private calculateDisplayRent(property: PropertyOwnership): { rent: number, description: string } {
@@ -539,65 +537,93 @@ export class GamePageComponent implements OnInit, OnDestroy {
 
   private async executeRentPayment(property: PropertyOwnership, diceRoll: number) {
     console.log('=== EXECUTING RENT PAYMENT ===');
-    console.log('Property:', property.propertyName);
+    console.log('Property:', property.propertyName, 'ID:', property.propertyId);
     console.log('Dice roll:', diceRoll);
-    console.log('Tenant:', this.currentPlayer?.name);
+    console.log('Current player:', this.currentPlayer?.id);
 
     if (!this.currentPlayer) {
-      console.error('No current player for rent payment');
+      const alert = await this.alertController.create({
+        header: 'Errore',
+        message: 'Giocatore corrente non identificato',
+        buttons: ['OK']
+      });
+      await alert.present();
       return;
     }
 
-    const loading = await this.loadingController.create({
-      message: `Pagando affitto per ${property.propertyName}...`
-    });
-    await loading.present();
+    let loading: any = null;
 
     try {
-      // CORREZIONE: Usa propertyId invece di id
+      loading = await this.loadingController.create({
+        message: 'Pagamento affitto...'
+      });
+      await loading.present();
+
       const transaction = await firstValueFrom(
         this.apiService.payRent(property.propertyId, this.currentPlayer.id, diceRoll)
       );
 
-      console.log('✅ Rent payment successful:', transaction);
+      console.log('✅ Rent payment completed:', transaction);
 
-      // Mostra conferma
+      // Chiudi loading PRIMA dell'alert
+      if (loading) {
+        await loading.dismiss();
+        loading = null;
+      }
+
+      // Ricarica i dati del giocatore
+      await this.loadCurrentPlayer();
+
       const alert = await this.alertController.create({
-        header: '💰 Affitto Pagato',
-        message: `Hai pagato ${this.gameService.formatCurrency(transaction.amount)} per "${property.propertyName}"`,
-        buttons: [
-          {
-            text: 'OK',
-            handler: () => {
-              // Aggiorna i dati dopo il pagamento
-              this.loadGameData();
-            }
-          }
-        ]
+        header: '✅ Affitto Pagato',
+        message: `Hai pagato ${this.gameService.formatCurrency(transaction.amount)} di affitto per "${property.propertyName}".`,
+        buttons: ['OK']
       });
       await alert.present();
 
     } catch (error) {
       console.error('❌ Rent payment error:', error);
 
-      let errorMessage = 'Errore nel pagamento dell\'affitto.';
-
-      // Gestisci errori specifici
-      if (error.status === 400) {
-        errorMessage = error.error?.message || 'Richiesta non valida (proprietà ipotecata o fondi insufficienti)';
-      } else if (error.status === 404) {
-        errorMessage = 'Proprietà non trovata';
+      // Chiudi loading PRIMA dell'alert di errore
+      if (loading) {
+        await loading.dismiss();
+        loading = null;
       }
 
-      const errorAlert = await this.alertController.create({
+      let errorMessage = 'Errore nel pagamento dell\'affitto';
+      if (error && typeof error === 'object') {
+        if ((error as any).status === 400) {
+          errorMessage = (error as any).error?.message || 'Transazione non valida o fondi insufficienti';
+        } else if ((error as any).status === 404) {
+          errorMessage = 'Proprietà o giocatore non trovato';
+        }
+      }
+
+      const alert = await this.alertController.create({
         header: '❌ Errore Pagamento',
         message: errorMessage,
         buttons: ['OK']
       });
-      await errorAlert.present();
+      await alert.present();
     } finally {
-      loading.dismiss();
+      // Sicurezza: assicurati che loading sia sempre chiuso
+      if (loading) {
+        try {
+          await loading.dismiss();
+        } catch (e) {
+          console.warn('Error dismissing loading:', e);
+        }
+      }
     }
+  }
+  async loadCurrentPlayer() {
+    return new Promise<void>((resolve) => {
+      this.gameService.getCurrentPlayer().subscribe((player: Player | null) => {
+        this.currentPlayer = player;
+        console.log('Current player loaded:', this.currentPlayer?.name);
+        resolve();
+      });
+    });
   }
   // ============================================
   // Trasferimento denaro semplificato
@@ -958,44 +984,36 @@ export class GamePageComponent implements OnInit, OnDestroy {
     console.log('Properties available:', properties.length);
     console.log('Other players:', otherPlayers.length);
 
+    // CORREZIONE: Alert semplificato senza stili CSS problematici
     const alert = await this.alertController.create({
-      header: '🔄 Scambio Negoziato',
+      header: 'Scambio Negoziato',
       message: 'Seleziona proprietà, destinatario e compenso',
-      cssClass: 'multi-transfer-modal',
       inputs: [
-        // Selezione destinatario
+        // Header destinatario - SENZA stili
         {
-          name: 'destinatario',
+          name: 'destinatario-header',
           type: 'text',
-          value: '🎯 SELEZIONA DESTINATARIO',
-          disabled: true,
-          attributes: {
-            readonly: true,
-            style: 'text-align: center; font-weight: bold; background: #e3f2fd; border: none; color: #1976d2;'
-          }
+          value: '--- SELEZIONA DESTINATARIO ---',
+          disabled: true
         },
-        ...otherPlayers.map(player => ({
+        ...otherPlayers.map((player, index) => ({
           name: 'recipientId',
           type: 'radio' as const,
           label: `${player.name} (${this.gameService.formatCurrency(player.balance)})`,
           value: player.id.toString(),
-          checked: false
+          checked: index === 0 // Seleziona automaticamente il primo
         })),
 
-        // Separatore proprietà
+        // Header proprietà - SENZA stili
         {
-          name: 'separator1',
+          name: 'properties-header',
           type: 'text',
-          value: '🏠 PROPRIETÀ DA TRASFERIRE',
-          disabled: true,
-          attributes: {
-            readonly: true,
-            style: 'text-align: center; font-weight: bold; background: #f3e5f5; border: none; color: #7b1fa2; margin-top: 1rem;'
-          }
+          value: '--- PROPRIETÀ DA TRASFERIRE ---',
+          disabled: true
         },
 
-        // Proprietà selezionabili
-        ...properties.map(prop => ({
+        // Proprietà selezionabili - max 5 per evitare overflow
+        ...properties.slice(0, 5).map(prop => ({
           name: 'selectedProperties',
           type: 'checkbox' as const,
           label: `${prop.propertyName} (${this.gameService.formatCurrency(prop.propertyPrice)})${prop.isMortgaged ? ' [IPOTECATA]' : ''}`,
@@ -1003,16 +1021,20 @@ export class GamePageComponent implements OnInit, OnDestroy {
           checked: false
         })),
 
-        // Separatore compenso
+        // Se ci sono più di 5 proprietà, mostra messaggio
+        ...(properties.length > 5 ? [{
+          name: 'more-properties',
+          type: 'text' as const,
+          value: `... e altre ${properties.length - 5} proprietà (usa il modal proprietà per trasferimenti singoli)`,
+          disabled: true
+        }] : []),
+
+        // Header compenso - SENZA stili
         {
-          name: 'separator2',
+          name: 'compenso-header',
           type: 'text',
-          value: '💰 COMPENSO MONETARIO',
-          disabled: true,
-          attributes: {
-            readonly: true,
-            style: 'text-align: center; font-weight: bold; background: #e8f5e8; border: none; color: #2e7d32; margin-top: 1rem;'
-          }
+          value: '--- COMPENSO MONETARIO ---',
+          disabled: true
         },
 
         // Tipo di compenso
@@ -1042,7 +1064,7 @@ export class GamePageComponent implements OnInit, OnDestroy {
         {
           name: 'compensationAmount',
           type: 'number',
-          placeholder: 'Importo compenso (se selezionato sopra)',
+          placeholder: 'Importo compenso',
           value: 0,
           min: 0
         },
@@ -1051,7 +1073,7 @@ export class GamePageComponent implements OnInit, OnDestroy {
         {
           name: 'description',
           type: 'text',
-          placeholder: 'Descrizione dello scambio (opzionale)',
+          placeholder: 'Descrizione dello scambio',
           value: 'Scambio negoziato'
         }
       ],
@@ -1063,15 +1085,230 @@ export class GamePageComponent implements OnInit, OnDestroy {
         {
           text: 'Esegui Scambio',
           handler: async (data) => {
-            console.log('=== FORM DATA RECEIVED ===', data);
-            const result = await this.validateAndExecuteMultiTransfer(data, properties);
-            return result; // true = chiude modal, false = mantiene aperto
+            console.log('=== MULTI TRANSFER FORM DATA ===', data);
+            return await this.validateAndExecuteSimpleMultiTransfer(data, properties);
           }
         }
       ]
     });
 
     await alert.present();
+  }
+
+  private async validateAndExecuteSimpleMultiTransfer(data: any, allProperties: PropertyOwnership[]): Promise<boolean> {
+    console.log('=== VALIDATING SIMPLE MULTI TRANSFER ===', data);
+
+    // Validazione destinatario
+    if (!data.recipientId) {
+      const errorAlert = await this.alertController.create({
+        header: 'Errore',
+        message: 'Seleziona il giocatore destinatario.',
+        buttons: ['OK']
+      });
+      await errorAlert.present();
+      return false;
+    }
+
+    // Validazione proprietà
+    if (!data.selectedProperties || data.selectedProperties.length === 0) {
+      const errorAlert = await this.alertController.create({
+        header: 'Errore',
+        message: 'Seleziona almeno una proprietà da trasferire.',
+        buttons: ['OK']
+      });
+      await errorAlert.present();
+      return false;
+    }
+
+    // Preparazione dati
+    const selectedIds = Array.isArray(data.selectedProperties) ?
+      data.selectedProperties : [data.selectedProperties];
+
+    const recipientId = parseInt(data.recipientId);
+
+    // Calcolo compenso
+    let compensationAmount = 0;
+    if (data.compensationType !== 'none') {
+      compensationAmount = parseFloat(data.compensationAmount) || 0;
+      if (compensationAmount <= 0) {
+        const errorAlert = await this.alertController.create({
+          header: 'Errore',
+          message: 'Inserisci un importo valido per il compenso.',
+          buttons: ['OK']
+        });
+        await errorAlert.present();
+        return false;
+      }
+
+      // Se paga al destinatario, rendi negativo
+      if (data.compensationType === 'pay') {
+        compensationAmount = -compensationAmount;
+      }
+    }
+
+    // Conferma
+    const confirmed = await this.showSimpleMultiTransferConfirmation(
+      selectedIds,
+      recipientId,
+      compensationAmount,
+      data.description,
+      allProperties
+    );
+
+    if (!confirmed) {
+      return false;
+    }
+
+    // Esecuzione
+    return await this.executeSimpleMultiTransfer(
+      selectedIds.map(id => parseInt(id)),
+      recipientId,
+      compensationAmount,
+      data.description
+    );
+  }
+
+  // NUOVO: Conferma semplificata per trasferimenti multipli
+  private async showSimpleMultiTransferConfirmation(
+    selectedIds: string[],
+    recipientId: number,
+    compensationAmount: number,
+    description: string,
+    allProperties: PropertyOwnership[]
+  ): Promise<boolean> {
+
+    const selectedProperties = allProperties.filter(p =>
+      selectedIds.includes(p.id.toString())
+    );
+
+    const totalValue = selectedProperties.reduce((sum, prop) => sum + prop.propertyPrice, 0);
+
+    let message = `CONFERMA SCAMBIO MULTIPLO\n\n`;
+    message += `Proprietà da trasferire (${selectedProperties.length}):\n`;
+    selectedProperties.forEach(prop => {
+      message += `• ${prop.propertyName} (${this.gameService.formatCurrency(prop.propertyPrice)})\n`;
+    });
+    message += `\nValore totale: ${this.gameService.formatCurrency(totalValue)}\n`;
+
+    if (compensationAmount > 0) {
+      message += `\nRiceverai: ${this.gameService.formatCurrency(compensationAmount)}`;
+    } else if (compensationAmount < 0) {
+      message += `\nPagherai: ${this.gameService.formatCurrency(-compensationAmount)}`;
+    } else {
+      message += `\nNessun compenso monetario`;
+    }
+
+    if (description && description.trim()) {
+      message += `\n\nDescrizione: ${description}`;
+    }
+
+    return new Promise(async (resolve) => {
+      const alert = await this.alertController.create({
+        header: 'Conferma Scambio',
+        message,
+        buttons: [
+          {
+            text: 'Annulla',
+            handler: () => resolve(false)
+          },
+          {
+            text: 'Conferma',
+            handler: () => resolve(true)
+          }
+        ]
+      });
+      await alert.present();
+    });
+  }
+
+  // NUOVO: Esecuzione semplificata per trasferimenti multipli
+  private async executeSimpleMultiTransfer(
+    ownershipIds: number[],
+    recipientId: number,
+    compensationAmount: number,
+    description: string
+  ): Promise<boolean> {
+
+    let loading: any = null;
+
+    try {
+      loading = await this.loadingController.create({
+        message: 'Esecuzione scambio...'
+      });
+      await loading.present();
+
+      console.log('=== EXECUTING SIMPLE MULTI TRANSFER ===');
+      console.log('Ownership IDs:', ownershipIds);
+      console.log('Recipient ID:', recipientId);
+      console.log('Compensation:', compensationAmount);
+
+      const result = await firstValueFrom(
+        this.apiService.transferMultipleProperties(
+          ownershipIds,
+          recipientId,
+          compensationAmount,
+          description
+        )
+      );
+
+      console.log('✅ Multi transfer completed successfully:', result);
+
+      // Ricarica i dati
+      await this.loadCurrentPlayer();
+
+      // Chiudi loading PRIMA dell'alert
+      if (loading) {
+        await loading.dismiss();
+        loading = null;
+      }
+
+      // Mostra successo
+      const alert = await this.alertController.create({
+        header: 'Scambio Completato',
+        message: `Scambio di ${ownershipIds.length} proprietà completato con successo!`,
+        buttons: ['OK']
+      });
+      await alert.present();
+
+      return true;
+
+    } catch (error) {
+      console.error('❌ Multi transfer error:', error);
+
+      // Chiudi loading PRIMA dell'alert di errore
+      if (loading) {
+        await loading.dismiss();
+        loading = null;
+      }
+
+      let errorMessage = 'Errore durante lo scambio.';
+      if (error && typeof error === 'object') {
+        if ((error as any).status === 400) {
+          errorMessage = (error as any).error?.message || 'Dati non validi o fondi insufficienti.';
+        } else if ((error as any).status === 404) {
+          errorMessage = 'Proprietà o giocatori non trovati.';
+        }
+      }
+
+      const alert = await this.alertController.create({
+        header: 'Errore Scambio',
+        message: errorMessage,
+        buttons: ['OK']
+      });
+      await alert.present();
+
+      return false;
+
+    } finally {
+      // Sicurezza: assicurati che loading sia sempre chiuso
+      if (loading) {
+        try {
+          await loading.dismiss();
+        } catch (e) {
+          console.warn('Error dismissing loading:', e);
+        }
+      }
+    }
   }
 
   /**

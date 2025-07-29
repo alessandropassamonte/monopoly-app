@@ -13,7 +13,8 @@ import { Property, PropertyOwnership } from '../models/property.model';
   providedIn: 'root'
 })
 export class ApiService {
-  private readonly baseUrl = 'http://localhost:8080/api';
+  // private readonly baseUrl = 'http://localhost:8080/api';
+    private readonly baseUrl = 'http://192.168.1.64:8080/api';
 
   constructor(private http: HttpClient) {}
 

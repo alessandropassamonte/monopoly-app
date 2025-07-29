@@ -222,8 +222,162 @@ export class PropertiesModalComponent implements OnInit {
     }
   }
 
+  // Aggiungi questo metodo alla classe PropertiesModalComponent
 
-  
+  /**
+   * Acquista una proprietà a un prezzo arbitrario specificato dall'utente
+   */
+  async purchasePropertyCustomPrice(property: Property) {
+    if (!this.currentPlayer) {
+      const alert = await this.alertController.create({
+        header: 'Errore',
+        message: 'Giocatore non identificato',
+        buttons: ['OK']
+      });
+      await alert.present();
+      return;
+    }
+
+    console.log('=== PURCHASE PROPERTY CUSTOM PRICE ===');
+    console.log('Property:', property.name, 'Official Price:', property.price);
+    console.log('Current player:', this.currentPlayer.name, 'Balance:', this.currentPlayer.balance);
+
+    // Input per il prezzo personalizzato
+    const priceAlert = await this.alertController.create({
+      header: 'Prezzo Personalizzato',
+      message: `Inserisci il prezzo per "${property.name}":Prezzo ufficiale: ${this.gameService.formatCurrency(property.price)}`,
+      inputs: [
+        {
+          name: 'customPrice',
+          type: 'number',
+          placeholder: 'Inserisci prezzo (€)',
+          min: 0,
+          value: property.price // Precompila con il prezzo ufficiale
+        }
+      ],
+      buttons: [
+        {
+          text: 'Annulla',
+          role: 'cancel'
+        },
+        {
+          text: 'Continua',
+          handler: async (data) => {
+            const customPrice = parseFloat(data.customPrice);
+
+            // Validazione prezzo
+            if (isNaN(customPrice) || customPrice < 0) {
+              const errorAlert = await this.alertController.create({
+                header: 'Prezzo Non Valido',
+                message: 'Inserisci un prezzo valido (numero positivo)',
+                buttons: ['OK']
+              });
+              await errorAlert.present();
+              return false; // Mantiene aperto il dialog
+            }
+
+            // Verifica fondi sufficienti
+            if (this.currentPlayer!.balance < customPrice) {
+              const insufficientFundsAlert = await this.alertController.create({
+                header: 'Fondi Insufficienti',
+                message: `Non hai abbastanza denaro per acquistare "${property.name}" a questo prezzo.\nPrezzo richiesto: ${this.gameService.formatCurrency(customPrice)}\nTuo saldo: ${this.gameService.formatCurrency(this.currentPlayer!.balance)}`,
+                buttons: ['OK']
+              });
+              await insufficientFundsAlert.present();
+              return false; // Mantiene aperto il dialog
+            }
+
+            // Conferma acquisto con prezzo personalizzato
+            await this.confirmCustomPricePurchase(property, customPrice);
+            return true;
+          }
+        }
+      ]
+    });
+    await priceAlert.present();
+  }
+
+  /**
+   * Conferma e esegue l'acquisto a prezzo personalizzato
+   */
+  private async confirmCustomPricePurchase(property: Property, customPrice: number) {
+    const priceDifference = customPrice - property.price;
+    const isPriceHigher = priceDifference > 0;
+    const isPriceLower = priceDifference < 0;
+
+    let warningMessage = '';
+    if (isPriceHigher) {
+      warningMessage = `\nStai pagando ${this.gameService.formatCurrency(priceDifference)} in più del prezzo ufficiale!`;
+    } else if (isPriceLower) {
+      warningMessage = `\nStai risparmiando ${this.gameService.formatCurrency(Math.abs(priceDifference))} rispetto al prezzo ufficiale!`;
+    }
+
+    const confirmation = await this.alertController.create({
+      header: 'Conferma Acquisto Personalizzato',
+      message: `Vuoi acquistare "${property.name}" per ${this.gameService.formatCurrency(customPrice)}?${warningMessage}\n\nPrezzo ufficiale: ${this.gameService.formatCurrency(property.price)}\nIl tuo saldo diventerà: ${this.gameService.formatCurrency(this.currentPlayer!.balance - customPrice)}`,
+      buttons: [
+        {
+          text: 'Annulla',
+          role: 'cancel'
+        },
+        {
+          text: 'Acquista',
+          handler: async () => {
+            await this.executeCustomPricePurchase(property, customPrice);
+          }
+        }
+      ]
+    });
+    await confirmation.present();
+  }
+
+  /**
+   * Esegue l'acquisto a prezzo personalizzato
+   * Nota: Potrebbe essere necessario creare un nuovo endpoint API o modificare quello esistente
+   */
+  private async executeCustomPricePurchase(property: Property, customPrice: number) {
+    const loading = await this.loadingController.create({
+      message: 'Acquisto in corso...'
+    });
+    await loading.present();
+
+    try {
+      console.log('=== EXECUTING CUSTOM PRICE PURCHASE ===');
+      console.log('Property:', property.id, 'Player:', this.currentPlayer!.id, 'Custom Price:', customPrice);
+
+      // Usa il nuovo endpoint per l'acquisto a prezzo personalizzato
+      await firstValueFrom(this.apiService.purchasePropertyCustomPrice(property.id, this.currentPlayer!.id, customPrice));
+
+      // Update the owned properties and available properties
+      this.ownedPropertyIds.add(property.id);
+      this.updateAvailableProperties();
+
+      // Ricarica le proprietà del giocatore corrente
+      await this.loadCurrentPlayerProperties();
+
+      // Show success message
+      const successAlert = await this.alertController.create({
+        header: 'Acquisto Completato',
+        message: `Hai acquistato "${property.name}" per ${this.gameService.formatCurrency(customPrice)}!`,
+        buttons: ['OK']
+      });
+      await successAlert.present();
+
+    } catch (error) {
+      console.error('Custom price purchase error:', error);
+      const errorAlert = await this.alertController.create({
+        header: 'Errore Acquisto',
+        message: 'Errore nell\'acquisto a prezzo personalizzato. Riprova.',
+        buttons: ['OK']
+      });
+      await errorAlert.present();
+    } finally {
+      await loading.dismiss();
+    }
+  }
+
+
+
   // ============================================
   // NUOVO: Metodi per la ricerca
   // ============================================

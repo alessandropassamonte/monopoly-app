@@ -3,7 +3,7 @@
 
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable } from 'rxjs';
+import { catchError, Observable, tap } from 'rxjs';
 import { GameSession } from '../models/game-session.model';
 import { PlayerColor } from '../models/player.model';
 import { Transaction } from '../models/transaction.model';
@@ -487,6 +487,27 @@ export class ApiService {
       compensationAmount: compensationAmount || 0,
       description: description || 'Scambio negoziato proprietà'
     });
+  }
+  purchasePropertyCustomPrice(propertyId: number, playerId: number, customPrice: number): Observable<any> {
+    const url = `${this.baseUrl}/properties/${propertyId}/purchase-custom`;
+    const body = {
+      playerId: playerId,
+      customPrice: customPrice
+    };
+
+    console.log('=== API: PURCHASE PROPERTY CUSTOM PRICE ===');
+    console.log('URL:', url);
+    console.log('Body:', body);
+
+    return this.http.post<any>(url, body).pipe(
+      tap(response => {
+        console.log('Purchase custom price response:', response);
+      }),
+      catchError(error => {
+        console.error('Purchase custom price error:', error);
+        throw error;
+      })
+    );
   }
 
   /**

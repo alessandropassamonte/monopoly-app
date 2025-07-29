@@ -18,7 +18,7 @@
 </ion-header>
 
 <ion-content style="--background: linear-gradient(135deg, #f7fafc 0%, #edf2f7 100%);">
-  
+
   <!-- Current Player Info -->
   <div *ngIf="currentPlayer" style="padding: 1rem; background: white; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);">
     <div style="display: flex; align-items: center; gap: 1rem; padding: 1rem; 
@@ -52,19 +52,16 @@
 
   <!-- Segment Selector -->
   <div style="padding: 1rem; background: white; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);">
-    <ion-segment [(ngModel)]="selectedSegment" 
-                 (ionChange)="segmentChanged()"
-                 style="--background: #edf2f7; border-radius: 12px; overflow: hidden;">
-      <ion-segment-button value="available"
-                          style="--color: #4a5568;  
+    <ion-segment [(ngModel)]="selectedSegment" (ionChange)="segmentChanged()"
+      style="--background: #edf2f7; border-radius: 12px; overflow: hidden;">
+      <ion-segment-button value="available" style="--color: #4a5568;  
                                  --indicator-color: #805ad5; font-weight: 600;">
         <ion-label style="display: flex; align-items: center; gap: 0.5rem;">
           <ion-icon name="storefront-outline"></ion-icon>
           Compra Proprietà
         </ion-label>
       </ion-segment-button>
-      <ion-segment-button value="owned"
-                          style="--color: #4a5568;  
+      <ion-segment-button value="owned" style="--color: #4a5568;  
                                  --indicator-color: #805ad5; font-weight: 600;">
         <ion-label style="display: flex; align-items: center; gap: 0.5rem;">
           <ion-icon name="key-outline"></ion-icon>
@@ -78,7 +75,7 @@
 
     <!-- Available Properties -->
     <div *ngIf="selectedSegment === 'available'">
-      
+
       <!-- Header con Ricerca -->
       <div style="margin-bottom: 1.5rem;">
         <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem;">
@@ -92,26 +89,22 @@
 
         <!-- NUOVO: Barra di ricerca per proprietà disponibili -->
         <div style="position: relative; margin-bottom: 1rem;">
-          <ion-searchbar [(ngModel)]="searchTerm"
-                         (ionInput)="onSearchTermChange()"
-                         placeholder="🔍 Cerca proprietà per nome, tipo o colore..."
-                         show-clear-button="focus"
-                         style="--background: white; --border-radius: 15px; 
+          <ion-searchbar [(ngModel)]="searchTerm" (ionInput)="onSearchTermChange()"
+            placeholder="🔍 Cerca proprietà per nome, tipo o colore..." show-clear-button="focus" style="--background: white; --border-radius: 15px; 
                                 --box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1); 
                                 --color: #2d3748; --placeholder-color: #4a5568;
                                 --icon-color: #3182ce; --clear-button-color: #3182ce;">
           </ion-searchbar>
-          
+
           <!-- Suggerimenti di ricerca -->
-          <div *ngIf="searchTerm.length > 0 && filteredAvailableProperties.length === 0" 
-               style="background: #fed7d7; color: #9b2c2c; padding: 1rem; 
+          <div *ngIf="searchTerm.length > 0 && filteredAvailableProperties.length === 0" style="background: #fed7d7; color: #9b2c2c; padding: 1rem; 
                       border-radius: 10px; text-align: center; margin-top: 0.5rem;">
-            <ion-icon name="search-outline" style="font-size: 1.5rem; margin-bottom: 0.5rem; display: block;"></ion-icon>
+            <ion-icon name="search-outline"
+              style="font-size: 1.5rem; margin-bottom: 0.5rem; display: block;"></ion-icon>
             <p style="margin: 0; font-size: 0.9rem;">
               Nessuna proprietà trovata per "<strong>{{searchTerm}}</strong>"
             </p>
-            <button (click)="clearSearch()" 
-                    style="background: transparent; border: 1px solid #9b2c2c; color: #9b2c2c; 
+            <button (click)="clearSearch()" style="background: transparent; border: 1px solid #9b2c2c; color: #9b2c2c; 
                            padding: 0.5rem 1rem; border-radius: 8px; margin-top: 0.5rem; cursor: pointer;">
               Pulisci ricerca
             </button>
@@ -120,12 +113,10 @@
       </div>
 
       <!-- Empty State -->
-      <div *ngIf="filteredAvailableProperties.length === 0 && searchTerm.length === 0" 
-           style="text-align: center; padding: 4rem 2rem; 
+      <div *ngIf="filteredAvailableProperties.length === 0 && searchTerm.length === 0" style="text-align: center; padding: 4rem 2rem; 
                   background: white; border-radius: 20px; 
                   box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);">
-        <ion-icon name="storefront-outline" 
-                  style="font-size: 4rem; opacity: 0.3; margin-bottom: 1rem; 
+        <ion-icon name="storefront-outline" style="font-size: 4rem; opacity: 0.3; margin-bottom: 1rem; 
                          display: block; color: #4a5568;"></ion-icon>
         <h4 style="margin: 0 0 0.5rem 0; font-size: 1.4rem; color: #2d3748;">Tutto venduto!</h4>
         <p style="margin: 0; color: #4a5568;">Tutte le proprietà sono già state acquistate</p>
@@ -134,19 +125,18 @@
       <!-- Properties Grid -->
       <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); 
                   gap: 1.5rem;" *ngIf="filteredAvailableProperties.length > 0">
-        <div *ngFor="let property of filteredAvailableProperties" 
-             [style]="'background: white; border-radius: 20px; padding: 1.5rem; 
+        <div *ngFor="let property of filteredAvailableProperties" [style]="'background: white; border-radius: 20px; padding: 1.5rem; 
                       box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1); 
                       border-top: 6px solid ' + getPropertyColorHex(property.colorGroup) + '; 
                       transition: all 0.3s ease; position: relative; overflow: hidden;'"
-             onmouseover="this.style.transform='translateY(-8px)'; this.style.boxShadow='0 15px 40px rgba(0, 0, 0, 0.15)';"
-             onmouseout="this.style.transform='translateY(0px)'; this.style.boxShadow='0 8px 25px rgba(0, 0, 0, 0.1)';">
-          
+          onmouseover="this.style.transform='translateY(-8px)'; this.style.boxShadow='0 15px 40px rgba(0, 0, 0, 0.15)';"
+          onmouseout="this.style.transform='translateY(0px)'; this.style.boxShadow='0 8px 25px rgba(0, 0, 0, 0.1)';">
+
           <!-- Background Pattern -->
           <div style="position: absolute; top: -30%; right: -20%; width: 120px; height: 120px; 
                       background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%); 
                       border-radius: 50%; pointer-events: none;"></div>
-          
+
           <div style="position: relative; z-index: 1;">
             <!-- Property Header -->
             <div style="margin-bottom: 1.5rem;">
@@ -185,27 +175,42 @@
               </div>
             </div>
 
-            <!-- Purchase Button -->
-            <button (click)="purchaseProperty(property)"
-                    [disabled]="!currentPlayer || currentPlayer.balance < property.price"
-                    [style]="'width: 100%; border: none; border-radius: 12px; padding: 1rem; 
-                             font-weight: bold; font-size: 1rem; cursor: pointer; 
-                             transition: all 0.3s ease; ' +
-                             (currentPlayer && currentPlayer.balance >= property.price ? 
-                              'background: linear-gradient(135deg, #48bb78 0%, #38a169 100%); color: white; box-shadow: 0 4px 15px rgba(72, 187, 120, 0.3);' : 
-                              'background: #e2e8f0; color: #a0aec0; cursor: not-allowed;')"
-                    onmouseover="if (!this.disabled) { this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 20px rgba(72, 187, 120, 0.4)'; }"
-                    onmouseout="if (!this.disabled) { this.style.transform='translateY(0px)'; this.style.boxShadow='0 4px 15px rgba(72, 187, 120, 0.3)'; }">
-              <ion-icon name="card" style="margin-right: 0.5rem;"></ion-icon>
-              <span *ngIf="currentPlayer && currentPlayer.balance >= property.price">Acquista Proprietà</span>
-              <span *ngIf="!currentPlayer || currentPlayer.balance < property.price">Fondi Insufficienti</span>
-            </button>
+            <div style="display: flex; gap: 0.8rem; margin-top: 1rem;">
+              <!-- Bottone Acquista Proprietà (originale) -->
+              <button (click)="purchaseProperty(property)"
+                [disabled]="!currentPlayer || currentPlayer.balance < property.price" [style]="'flex: 1; border: none; border-radius: 12px; padding: 1rem; 
+                   font-weight: bold; font-size: 0.95rem; cursor: pointer; 
+                   transition: all 0.3s ease; ' +
+                   (currentPlayer && currentPlayer.balance >= property.price ?
+                    'background: linear-gradient(135deg, #48bb78 0%, #38a169 100%); color: white; box-shadow: 0 4px 15px rgba(72, 187, 120, 0.3);' : 
+                    'background: #e2e8f0; color: #a0aec0; cursor: not-allowed;')"
+                onmouseover="if (!this.disabled) { this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 20px rgba(72, 187, 120, 0.4)'; }"
+                onmouseout="if (!this.disabled) { this.style.transform='translateY(0px)'; this.style.boxShadow='0 4px 15px rgba(72, 187, 120, 0.3)'; }">
+                <ion-icon name="card" style="margin-right: 0.5rem;"></ion-icon>
+                <span *ngIf="currentPlayer && currentPlayer.balance >= property.price">Acquista</span>
+                <span *ngIf="!currentPlayer || currentPlayer.balance < property.price">Fondi Insufficienti</span>
+              </button>
+
+              <!-- Nuovo Bottone Acquista a Prezzo Arbitrario -->
+              <button (click)="purchasePropertyCustomPrice(property)" [disabled]="!currentPlayer" [style]="'flex: 1; border: none; border-radius: 12px; padding: 1rem; 
+                   font-weight: bold; font-size: 0.95rem; cursor: pointer; 
+                   transition: all 0.3s ease; ' +
+                   (currentPlayer ?
+                    'background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);' : 
+                    'background: #e2e8f0; color: #a0aec0; cursor: not-allowed;')"
+                onmouseover="if (!this.disabled) { this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 20px rgba(102, 126, 234, 0.4)'; }"
+                onmouseout="if (!this.disabled) { this.style.transform='translateY(0px)'; this.style.boxShadow='0 4px 15px rgba(102, 126, 234, 0.3)'; }">
+                <ion-icon name="trending-up-outline" style="margin-right: 0.5rem;"></ion-icon>
+                <span>Acquista Asta</span>
+              </button>
+            </div>
 
 
             <!-- Affordability indicator -->
-            <div *ngIf="currentPlayer && currentPlayer.balance < property.price" 
-                 style="margin-top: 0.8rem; text-align: center; font-size: 0.8rem; color: #e53e3e;">
-              Ti servono altri {{gameService.formatCurrency(property.price - currentPlayer.balance)}}
+            <div *ngIf="currentPlayer && currentPlayer.balance < property.price"
+              style="margin-top: 0.8rem; text-align: center; font-size: 0.8rem; color: #e53e3e;">
+              Ti servono altri {{gameService.formatCurrency(property.price - currentPlayer.balance)}} per il prezzo
+              ufficiale
             </div>
           </div>
         </div>
@@ -214,7 +219,7 @@
 
     <!-- Current Player's Properties -->
     <div *ngIf="selectedSegment === 'owned'">
-      
+
       <!-- Header con Ricerca -->
       <div style="margin-bottom: 1.5rem;">
         <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem;">
@@ -228,26 +233,22 @@
 
         <!-- NUOVO: Barra di ricerca per proprietà possedute -->
         <div *ngIf="currentPlayerProperties.length > 0" style="position: relative; margin-bottom: 1rem;">
-          <ion-searchbar [(ngModel)]="ownedSearchTerm"
-                         (ionInput)="onOwnedSearchTermChange()"
-                         placeholder="🔍 Cerca tra le tue proprietà..."
-                         show-clear-button="focus"
-                         style="--background: white; --border-radius: 15px; 
+          <ion-searchbar [(ngModel)]="ownedSearchTerm" (ionInput)="onOwnedSearchTermChange()"
+            placeholder="🔍 Cerca tra le tue proprietà..." show-clear-button="focus" style="--background: white; --border-radius: 15px; 
                                 --box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1); 
                                 --color: #2d3748; --placeholder-color: #4a5568;
                                 --icon-color: #3182ce; --clear-button-color: #3182ce;">
           </ion-searchbar>
-          
+
           <!-- Suggerimenti di ricerca -->
-          <div *ngIf="ownedSearchTerm.length > 0 && filteredCurrentPlayerProperties.length === 0" 
-               style="background: #fed7d7; color: #9b2c2c; padding: 1rem; 
+          <div *ngIf="ownedSearchTerm.length > 0 && filteredCurrentPlayerProperties.length === 0" style="background: #fed7d7; color: #9b2c2c; padding: 1rem; 
                       border-radius: 10px; text-align: center; margin-top: 0.5rem;">
-            <ion-icon name="search-outline" style="font-size: 1.5rem; margin-bottom: 0.5rem; display: block;"></ion-icon>
+            <ion-icon name="search-outline"
+              style="font-size: 1.5rem; margin-bottom: 0.5rem; display: block;"></ion-icon>
             <p style="margin: 0; font-size: 0.9rem;">
               Nessuna proprietà trovata per "<strong>{{ownedSearchTerm}}</strong>"
             </p>
-            <button (click)="clearOwnedSearch()" 
-                    style="background: transparent; border: 1px solid #9b2c2c; color: #9b2c2c; 
+            <button (click)="clearOwnedSearch()" style="background: transparent; border: 1px solid #9b2c2c; color: #9b2c2c; 
                            padding: 0.5rem 1rem; border-radius: 8px; margin-top: 0.5rem; cursor: pointer;">
               Pulisci ricerca
             </button>
@@ -256,17 +257,14 @@
       </div>
 
       <!-- Empty State for Current Player Properties -->
-      <div *ngIf="currentPlayerProperties.length === 0" 
-           style="text-align: center; padding: 4rem 2rem; 
+      <div *ngIf="currentPlayerProperties.length === 0" style="text-align: center; padding: 4rem 2rem; 
                   background: white; border-radius: 20px; 
                   box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);">
-        <ion-icon name="home-outline" 
-                  style="font-size: 4rem; opacity: 0.3; margin-bottom: 1rem; 
+        <ion-icon name="home-outline" style="font-size: 4rem; opacity: 0.3; margin-bottom: 1rem; 
                          display: block; color: #4a5568;"></ion-icon>
         <h4 style="margin: 0 0 0.5rem 0; font-size: 1.4rem; color: #2d3748;">Nessuna proprietà</h4>
         <p style="margin: 0 0 1rem 0; color: #4a5568;">Non possiedi ancora proprietà</p>
-        <button (click)="selectedSegment = 'available'; segmentChanged()"
-                style="background: linear-gradient(135deg, #48bb78 0%, #38a169 100%); 
+        <button (click)="selectedSegment = 'available'; segmentChanged()" style="background: linear-gradient(135deg, #48bb78 0%, #38a169 100%); 
                        color: white; border: none; border-radius: 12px; padding: 1rem 2rem; 
                        font-weight: 600; cursor: pointer;">
           Acquista la Prima Proprietà
@@ -274,18 +272,16 @@
       </div>
 
       <!-- Current Player Properties Grid -->
-      <div *ngIf="filteredCurrentPlayerProperties.length > 0" 
-           style="display: grid; grid-template-columns: repeat(auto-fill, minmax(350px, 1fr)); 
+      <div *ngIf="filteredCurrentPlayerProperties.length > 0" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(350px, 1fr)); 
                   gap: 1.5rem;">
-        <div *ngFor="let ownership of filteredCurrentPlayerProperties" 
-             [style]="'background: white; border-radius: 20px; padding: 1.5rem; 
+        <div *ngFor="let ownership of filteredCurrentPlayerProperties" [style]="'background: white; border-radius: 20px; padding: 1.5rem; 
                       box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1); 
                       border-top: 6px solid ' + getPropertyColorHex(ownership.colorGroup) + '; 
                       transition: all 0.3s ease; position: relative; overflow: hidden;' +
                       (ownership.mortgaged ? ' opacity: 0.7; filter: grayscale(0.3);' : '')"
-             onmouseover="this.style.transform='translateY(-5px)'; this.style.boxShadow='0 12px 35px rgba(0, 0, 0, 0.15)';"
-             onmouseout="this.style.transform='translateY(0px)'; this.style.boxShadow='0 8px 25px rgba(0, 0, 0, 0.1)';">
-          
+          onmouseover="this.style.transform='translateY(-5px)'; this.style.boxShadow='0 12px 35px rgba(0, 0, 0, 0.15)';"
+          onmouseout="this.style.transform='translateY(0px)'; this.style.boxShadow='0 8px 25px rgba(0, 0, 0, 0.1)';">
+
           <!-- Background Pattern -->
           <div style="position: absolute; top: -30%; right: -20%; width: 120px; height: 120px; 
                       background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%); 
@@ -294,33 +290,37 @@
           <div style="position: relative; z-index: 1;">
             <!-- Property Header with Status -->
             <div style="margin-bottom: 1.5rem;">
-              <div style="display: flex; align-items: start; justify-content: space-between; gap: 1rem; margin-bottom: 1rem;">
+              <div
+                style="display: flex; align-items: start; justify-content: space-between; gap: 1rem; margin-bottom: 1rem;">
                 <h4 style="margin: 0; font-size: 1.2rem; font-weight: bold; 
                            color: #2d3748; line-height: 1.3; flex: 1;">
                   {{ownership.propertyName}}
                 </h4>
-                
+                <div [style]="'padding: 0.3rem 0.8rem; border-radius: 20px; font-size: 0.75rem; 
+                             font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px; 
+                             background: ' + getPropertyColorHex(ownership.colorGroup) + '; 
+                             color: white; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2); flex-shrink: 0;'">
+                  {{getPropertyTypeLabel(ownership.propertyType)}}
+                </div>
+
                 <!-- Status Indicators -->
                 <div style="display: flex; flex-direction: column; gap: 0.5rem; align-items: end;">
-                  <span *ngIf="ownership.mortgaged" 
-                        style="background: linear-gradient(135deg, #e53e3e 0%, #c53030 100%); 
+                  <span *ngIf="ownership.mortgaged" style="background: linear-gradient(135deg, #e53e3e 0%, #c53030 100%); 
                                color: white; padding: 0.3rem 0.8rem; border-radius: 15px; 
                                font-size: 0.7rem; font-weight: bold; text-transform: uppercase; 
                                box-shadow: 0 2px 8px rgba(229, 62, 62, 0.3);">
                     🔒 IPOTECATA
                   </span>
-                  
+
                   <div *ngIf="!ownership.mortgaged" style="display: flex; align-items: center; gap: 0.3rem;">
-                    <span *ngIf="ownership.hasHotel" 
-                          style="background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%); 
+                    <span *ngIf="ownership.hasHotel" style="background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%); 
                                  color: white; padding: 0.3rem 0.8rem; border-radius: 15px; 
                                  font-size: 0.8rem; font-weight: bold; 
                                  box-shadow: 0 2px 8px rgba(251, 191, 36, 0.3);">
                       🏨 HOTEL
                     </span>
-                    
-                    <div *ngIf="ownership.houses > 0 && !ownership.hasHotel" 
-                         style="background: linear-gradient(135deg, #38a169 0%, #2f855a 100%); 
+
+                    <div *ngIf="ownership.houses > 0 && !ownership.hasHotel" style="background: linear-gradient(135deg, #38a169 0%, #2f855a 100%); 
                                 color: white; padding: 0.3rem 0.8rem; border-radius: 15px; 
                                 font-size: 0.8rem; font-weight: bold; display: flex; align-items: center; gap: 0.3rem;
                                 box-shadow: 0 2px 8px rgba(56, 161, 105, 0.3);">
@@ -337,7 +337,8 @@
               <div style="display: flex; align-items: center; gap: 1rem;">
                 <div style="text-align: center; flex: 1; 
                            padding: 1rem; background: #f7fafc; border-radius: 12px;">
-                  <div style="font-size: 0.8rem; color: #4a5568; margin-bottom: 0.3rem; font-weight: 500;">AFFITTO ATTUALE</div>
+                  <div style="font-size: 0.8rem; color: #4a5568; margin-bottom: 0.3rem; font-weight: 500;">AFFITTO
+                    ATTUALE</div>
                   <div style="font-size: 1.3rem; font-weight: bold; color: #3182ce; 
                              font-family: 'Courier New', monospace;">
                     {{gameService.formatCurrency(ownership.currentRent)}}
@@ -357,95 +358,84 @@
             <!-- Action Buttons -->
             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); 
                         gap: 0.8rem;">
-              
+
               <!-- Build House -->
               <button *ngIf="!ownership.mortgaged && !ownership.hasHotel && ownership.houses < 4"
-                      (click)="buildHouse(ownership)"
-                      style="background: linear-gradient(135deg, #48bb78 0%, #38a169 100%); 
+                (click)="buildHouse(ownership)" style="background: linear-gradient(135deg, #48bb78 0%, #38a169 100%); 
                              color: white; border: none; border-radius: 10px; padding: 0.8rem; 
                              font-weight: 600; font-size: 0.9rem; cursor: pointer; 
                              transition: all 0.2s ease; display: flex; align-items: center; 
                              justify-content: center; gap: 0.3rem;"
-                      onmouseover="this.style.transform='translateY(-2px)'"
-                      onmouseout="this.style.transform='translateY(0px)'">
+                onmouseover="this.style.transform='translateY(-2px)'"
+                onmouseout="this.style.transform='translateY(0px)'">
                 🏠 Casa
               </button>
-              
+
               <!-- Build Hotel -->
-              <button *ngIf="ownership.houses === 4 && !ownership.hasHotel"
-                      (click)="buildHotel(ownership)"
-                      style="background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%); 
+              <button *ngIf="ownership.houses === 4 && !ownership.hasHotel" (click)="buildHotel(ownership)" style="background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%); 
                              color: white; border: none; border-radius: 10px; padding: 0.8rem; 
                              font-weight: 600; font-size: 0.9rem; cursor: pointer; 
                              transition: all 0.2s ease; display: flex; align-items: center; 
                              justify-content: center; gap: 0.3rem;"
-                      onmouseover="this.style.transform='translateY(-2px)'"
-                      onmouseout="this.style.transform='translateY(0px)'">
+                onmouseover="this.style.transform='translateY(-2px)'"
+                onmouseout="this.style.transform='translateY(0px)'">
                 🏨 Hotel
               </button>
 
               <!-- Sell House -->
               <button *ngIf="!ownership.mortgaged && ownership.houses > 0 && !ownership.hasHotel"
-                      (click)="sellHouse(ownership)"
-                      style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); 
+                (click)="sellHouse(ownership)" style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); 
                              color: white; border: none; border-radius: 10px; padding: 0.8rem; 
                              font-weight: 600; font-size: 0.9rem; cursor: pointer; 
                              transition: all 0.2s ease; display: flex; align-items: center; 
                              justify-content: center; gap: 0.3rem;"
-                      onmouseover="this.style.transform='translateY(-2px)'"
-                      onmouseout="this.style.transform='translateY(0px)'">
+                onmouseover="this.style.transform='translateY(-2px)'"
+                onmouseout="this.style.transform='translateY(0px)'">
                 💰 Vendi Casa
               </button>
 
               <!-- Sell Hotel -->
-              <button *ngIf="ownership.hasHotel"
-                      (click)="sellHotel(ownership)"
-                      style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); 
+              <button *ngIf="ownership.hasHotel" (click)="sellHotel(ownership)" style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); 
                              color: white; border: none; border-radius: 10px; padding: 0.8rem; 
                              font-weight: 600; font-size: 0.9rem; cursor: pointer; 
                              transition: all 0.2s ease; display: flex; align-items: center; 
                              justify-content: center; gap: 0.3rem;"
-                      onmouseover="this.style.transform='translateY(-2px)'"
-                      onmouseout="this.style.transform='translateY(0px)'">
+                onmouseover="this.style.transform='translateY(-2px)'"
+                onmouseout="this.style.transform='translateY(0px)'">
                 💰 Vendi Hotel
               </button>
-              
+
               <!-- Mortgage -->
               <button *ngIf="!ownership.mortgaged && ownership.houses === 0 && !ownership.hasHotel"
-                      (click)="mortgageProperty(ownership)"
-                      style="background: linear-gradient(135deg, #ed8936 0%, #dd6b20 100%); 
+                (click)="mortgageProperty(ownership)" style="background: linear-gradient(135deg, #ed8936 0%, #dd6b20 100%); 
                              color: white; border: none; border-radius: 10px; padding: 0.8rem; 
                              font-weight: 600; font-size: 0.9rem; cursor: pointer; 
                              transition: all 0.2s ease; display: flex; align-items: center; 
                              justify-content: center; gap: 0.3rem;"
-                      onmouseover="this.style.transform='translateY(-2px)'"
-                      onmouseout="this.style.transform='translateY(0px)'">
+                onmouseover="this.style.transform='translateY(-2px)'"
+                onmouseout="this.style.transform='translateY(0px)'">
                 🔒 Ipoteca
               </button>
-              
+
               <!-- Redeem -->
-              <button *ngIf="ownership.mortgaged"
-                      (click)="redeemProperty(ownership)"
-                      style="background: linear-gradient(135deg, #38a169 0%, #2f855a 100%); 
+              <button *ngIf="ownership.mortgaged" (click)="redeemProperty(ownership)" style="background: linear-gradient(135deg, #38a169 0%, #2f855a 100%); 
                              color: white; border: none; border-radius: 10px; padding: 0.8rem; 
                              font-weight: 600; font-size: 0.9rem; cursor: pointer; 
                              transition: all 0.2s ease; display: flex; align-items: center; 
                              justify-content: center; gap: 0.3rem;"
-                      onmouseover="this.style.transform='translateY(-2px)'"
-                      onmouseout="this.style.transform='translateY(0px)'">
+                onmouseover="this.style.transform='translateY(-2px)'"
+                onmouseout="this.style.transform='translateY(0px)'">
                 🔓 Riscatta
               </button>
 
               <!-- Transfer Property -->
-              <button *ngIf="ownership.houses === 0 && !ownership.hasHotel"
-                      (click)="transferProperty(ownership)"
-                      style="background: linear-gradient(135deg, #805ad5 0%, #6b46c1 100%); 
+              <button *ngIf="ownership.houses === 0 && !ownership.hasHotel" (click)="transferProperty(ownership)" style="background: linear-gradient(135deg, #805ad5 0%, #6b46c1 100%); 
                              color: white; border: none; border-radius: 10px; padding: 0.8rem; 
                              font-weight: 600; font-size: 0.9rem; cursor: pointer; 
                              transition: all 0.2s ease; display: flex; align-items: center; 
                              justify-content: center; gap: 0.3rem;"
-                      onmouseover="this.style.transform='translateY(-2px)'"
-                      onmouseout="this.style.transform='translateY(0px)'">
+                onmouseover="this.style.transform='translateY(-2px)'"
+                onmouseout="this.style.transform='translateY(0px)'">
                 🔄 Trasferisci
               </button>
             </div>
@@ -467,7 +457,7 @@
     .properties-grid {
       grid-template-columns: 1fr !important;
     }
-    
+
     .property-actions {
       grid-template-columns: 1fr 1fr !important;
     }
@@ -477,12 +467,12 @@
     .property-card {
       padding: 1rem !important;
     }
-    
+
     .property-details {
       flex-direction: column !important;
       gap: 1rem !important;
     }
-    
+
     .property-actions {
       grid-template-columns: 1fr !important;
     }

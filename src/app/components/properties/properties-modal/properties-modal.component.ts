@@ -222,23 +222,6 @@ export class PropertiesModalComponent implements OnInit {
     }
   }
 
-  async showAuctionModal(selectedProperty: Property) {
-     const session = await new Promise<any>((resolve) => {
-          this.gameService.getCurrentSession().subscribe(session => resolve(session));
-        });
-    const modal = await this.modalController.create({
-      component: AuctionModalComponent,
-      cssClass: 'properties-modal',
-      componentProps: {
-        players: session.players,
-        property: selectedProperty // Passa la proprietà selezionata al modulo
-      }
-    });
-
-    await modal.present();
-
-    const { data } = await modal.onDidDismiss();
-  }
 
   
   // ============================================

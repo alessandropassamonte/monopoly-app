@@ -14,2035 +14,1399 @@ import { ApiService } from '../../../services/api.service';
 import { GameSession } from '../../../models/game-session.model';
 import { PropertiesModalComponent } from '../../properties/properties-modal/properties-modal.component';
 import { WealthManagementModalComponent } from './wealth-management-modal/wealth-management-modal.component';
-import { AuctionModalComponent } from './auction-modal/auction-modal.component';
+import { TradeModalComponent } from './trade-modal/trade-modal.component';
 
 @Component({
-  selector: 'app-game',
-  templateUrl: './game-page.component.html',
-  styleUrls: ['./game-page.component.scss']
+   selector: 'app-game',
+   templateUrl: './game-page.component.html',
+   styleUrls: ['./game-page.component.scss']
 })
 export class GamePageComponent implements OnInit, OnDestroy {
-  sessionCode: string = '';
-  currentSession: GameSession | null = null;
-  currentPlayer: Player | null = null;
-  recentTransactions: Transaction[] = [];
-  selectedPlayer: Player | null = null;
-  private subscriptions: Subscription[] = [];
+   sessionCode: string = '';
+   currentSession: GameSession | null = null;
+   currentPlayer: Player | null = null;
+   recentTransactions: Transaction[] = [];
+   selectedPlayer: Player | null = null;
+   currentPlayerProperties: PropertyOwnership[] = [];
+   private subscriptions: Subscription[] = [];
 
-  constructor(
-    private route: ActivatedRoute,
-    private alertController: AlertController,
-    private modalController: ModalController,
-    private actionSheetController: ActionSheetController,
-    private loadingController: LoadingController,
-    private apiService: ApiService,
-    public gameService: GameService,
-    private router: Router,
-    private webSocketService: WebSocketService
-  ) { }
+   constructor(
+      private route: ActivatedRoute,
+      private alertController: AlertController,
+      private modalController: ModalController,
+      private actionSheetController: ActionSheetController,
+      private loadingController: LoadingController,
+      private apiService: ApiService,
+      public gameService: GameService,
+      private router: Router,
+      private webSocketService: WebSocketService
+   ) { }
 
-  ngOnInit() {
-    this.sessionCode = this.route.snapshot.paramMap.get('sessionCode') || '';
-    console.log('=== GAME PAGE INIT ===');
-    console.log('Session code:', this.sessionCode);
+   ngOnInit() {
+      this.sessionCode = this.route.snapshot.paramMap.get('sessionCode') || '';
+      console.log('=== GAME PAGE INIT ===');
+      console.log('Session code:', this.sessionCode);
 
-    if (this.sessionCode) {
-      this.initializeGamePage();
-    }
-  }
-
-  ngOnDestroy() {
-    this.subscriptions.forEach(sub => sub.unsubscribe());
-  }
-
-  async initializeGamePage() {
-    console.log('=== INITIALIZING GAME PAGE (IMPROVED) ===');
-
-    // Subscribe to game service observables
-    this.subscribeToGameService();
-
-    // Load initial data
-    await this.loadGameData();
-
-    // Setup WebSocket con retry logic
-    this.setupWebSocketWithRetry();
-
-    // AGGIUNTO: Controllo periodico connessione WebSocket
-    setInterval(() => {
-      this.checkWebSocketConnection();
-    }, 30000); // Controlla ogni 30 secondi
-  }
-
-  private setupWebSocketWithRetry() {
-    if (!this.sessionCode) return;
-
-    console.log('🔌 Setting up WebSocket with retry logic');
-
-    // Setup WebSocket
-    this.setupWebSocket();
-
-    // Subscribe to connection status
-    this.subscriptions.push(
-      this.webSocketService.getConnectionStatus().subscribe((connected) => {
-        console.log('🔌 WebSocket status changed:', connected ? 'CONNECTED' : 'DISCONNECTED');
-
-        if (!connected) {
-          // Prova a riconnettersi dopo 5 secondi
-          setTimeout(() => {
-            if (!this.webSocketService.isConnected()) {
-              console.log('🔄 Attempting WebSocket reconnection...');
-              this.webSocketService.connect(this.sessionCode);
-            }
-          }, 5000);
-        }
-      })
-    );
-  }
-
-
-
-  subscribeToGameService() {
-    // Subscribe to current session changes
-    this.subscriptions.push(
-      this.gameService.getCurrentSession().subscribe((session: GameSession | null) => {
-        console.log('=== SESSION UPDATED IN GAME ===');
-        this.currentSession = session;
-        // AGGIUNTO: Sincronizza automaticamente current player quando cambia la sessione
-        this.syncCurrentPlayerData();
-      })
-    );
-
-    // Subscribe to current player changes
-    this.subscriptions.push(
-      this.gameService.getCurrentPlayer().subscribe((player: Player | null) => {
-        console.log('=== PLAYER UPDATED IN GAME ===');
-        this.currentPlayer = player;
-      })
-    );
-  }
-
-  async loadGameData() {
-    try {
-      console.log('=== LOADING GAME DATA ===');
-
-      // Load session data
-      const session = await firstValueFrom(this.apiService.getSession(this.sessionCode));
-      if (session) {
-        console.log('Session loaded from API:', session);
-        this.gameService.setCurrentSession(session);
-      } else {
-        console.error('No session found');
-        return;
+      if (this.sessionCode) {
+         this.initializeGamePage();
       }
+   }
 
-      // Load transactions
-      await this.refreshTransactions();
+   ngOnDestroy() {
+      this.subscriptions.forEach(sub => sub.unsubscribe());
+   }
 
-    } catch (error) {
-      console.error('Error loading game data:', error);
-    }
-  }
+   async initializeGamePage() {
+      console.log('=== INITIALIZING GAME PAGE (IMPROVED) ===');
 
-  setupWebSocket() {
-    if (!this.sessionCode) return;
+      // Subscribe to game service observables
+      this.subscribeToGameService();
 
-    console.log('=== SETTING UP WEBSOCKET FOR GAME ===');
-    this.webSocketService.connect(this.sessionCode);
+      // Load initial data
+      await this.loadGameData();
 
-    this.subscriptions.push(
-      this.webSocketService.getMessages().subscribe((message) => {
-        if (message) {
-          console.log('=== WEBSOCKET MESSAGE IN GAME ===', message);
-          this.handleWebSocketMessage(message);
-        }
-      })
-    );
-  }
+      // Setup WebSocket con retry logic
+      this.setupWebSocketWithRetry();
 
-  handleWebSocketMessage(message: any) {
-    console.log('📨 WebSocket message received in game:', message);
+      // AGGIUNTO: Controllo periodico connessione WebSocket
+      setInterval(() => {
+         this.checkWebSocketConnection();
+      }, 30000); // Controlla ogni 30 secondi
+   }
 
-    switch (message.type) {
-      case 'BALANCE_UPDATE':
-        console.log('💰 Balance updated, reloading data');
-        this.handleBalanceUpdate(message.data);
-        break;
+   private setupWebSocketWithRetry() {
+      if (!this.sessionCode) return;
 
-      case 'PROPERTY_PURCHASED':
-      case 'PROPERTY_UPDATE':
-        console.log('🏠 Property updated, refreshing data');
-        this.loadGameData();
-        this.syncCurrentPlayerData();
-        this.refreshTransactions();
-        break;
+      console.log('🔌 Setting up WebSocket with retry logic');
 
-      case 'TRANSACTION_UPDATE':
-        console.log('💳 Transaction updated, refreshing transactions');
-        this.refreshTransactions();
-        this.syncCurrentPlayerData();
-        break;
+      // Setup WebSocket
+      this.setupWebSocket();
 
-      case 'SESSION_UPDATE':
-        console.log('🔄 Session updated, refreshing all data');
-        this.loadGameData();
-        break;
+      // Subscribe to connection status
+      this.subscriptions.push(
+         this.webSocketService.getConnectionStatus().subscribe((connected) => {
+            console.log('🔌 WebSocket status changed:', connected ? 'CONNECTED' : 'DISCONNECTED');
 
-      case 'GAME_ENDED':
-        console.log('🏁 Game ended');
-        this.showToast('La partita è terminata', 'warning');
-        this.router.navigate(['/home']);
-        break;
-
-      case 'PLAYER_BANKRUPT':
-        console.log('💔 Player bankruptcy');
-        this.showToast(`${message.data.bankruptPlayer} è in bancarotta!`, 'warning');
-        this.loadGameData();
-        break;
-
-      default:
-        console.log('❓ Unknown message type in game:', message.type);
-    }
-  }
-
-  private handleBalanceUpdate(data: any) {
-    console.log('💰 Handling balance update:', data);
-
-    try {
-      // Aggiorna i dati della sessione
-      this.loadGameData();
-
-      // Aggiorna le transazioni
-      this.refreshTransactions();
-
-      // Sincronizza il current player
-      this.syncCurrentPlayerData();
-
-      // AGGIUNTO: Mostra notifica se il current player è coinvolto
-      if (data.type) {
-        let message = '';
-        switch (data.type) {
-          case 'PLAYER_TO_PLAYER_TRANSFER':
-            if (data.fromPlayer?.id === this.currentPlayer?.id || data.toPlayer?.id === this.currentPlayer?.id) {
-              const amount = this.gameService.formatCurrency(data.transaction?.amount || 0);
-              message = `Trasferimento di ${amount} completato`;
-            }
-            break;
-          case 'PLAYER_TO_BANK_PAYMENT':
-            if (data.player?.id === this.currentPlayer?.id) {
-              const amount = this.gameService.formatCurrency(data.transaction?.amount || 0);
-              message = `Pagamento di ${amount} alla Banca completato`;
-            }
-            break;
-          case 'BANK_TO_PLAYER_PAYMENT':
-            if (data.player?.id === this.currentPlayer?.id) {
-              const amount = this.gameService.formatCurrency(data.transaction?.amount || 0);
-              message = `Ricevuto ${amount} dalla Banca`;
-            }
-            break;
-        }
-
-        if (message) {
-          this.showToast(message, 'success');
-        }
-      }
-    } catch (error) {
-      console.error('❌ Error handling balance update:', error);
-    }
-  }
-
-  // AGGIUNTO: Metodo per mostrare toast notifications (aggiungere ToastController se necessario)
-  private async showToast(message: string, color: 'success' | 'warning' | 'danger' = 'success') {
-    console.log(`🔔 ${color.toUpperCase()}: ${message}`);
-
-    // Opzionale: Se vuoi aggiungere ToastController
-    /*
-    const toast = await this.toastController.create({
-      message,
-      duration: 3000,
-      color,
-      position: 'top'
-    });
-    await toast.present();
-    */
-  }
-
-  // AGGIUNTO: Metodo per controllare la connessione WebSocket
-  private checkWebSocketConnection() {
-    if (!this.webSocketService.isConnected()) {
-      console.log('⚠️ WebSocket disconnesso, tentativo riconnessione...');
-      this.webSocketService.forceReconnect();
-    }
-  }
-
-
-  // NUOVO: Metodo per sincronizzare i dati del current player con la sessione aggiornata
-  private syncCurrentPlayerData() {
-    if (!this.currentPlayer || !this.currentSession) return;
-
-    // Trova il player aggiornato nella sessione corrente
-    const updatedPlayer = this.currentSession.players.find(p => p.id === this.currentPlayer!.id);
-    if (updatedPlayer) {
-      console.log('Syncing current player data:', updatedPlayer);
-      this.gameService.setCurrentPlayer(updatedPlayer);
-    }
-  }
-
-  async refreshTransactions() {
-    try {
-      console.log('=== REFRESHING TRANSACTIONS ===');
-      const transactions = await firstValueFrom(this.apiService.getTransactions(this.sessionCode));
-      this.recentTransactions = transactions || [];
-      console.log('Transactions loaded:', this.recentTransactions.length);
-    } catch (error) {
-      console.error('Error loading transactions:', error);
-      this.recentTransactions = [];
-    }
-  }
-
-  selectPlayer(player: Player) {
-    console.log('Player selected:', player);
-    this.selectedPlayer = player;
-  }
-
-  // ============================================
-  // NUOVO: Pagamento affitto migliorato - Step 1: Selezione giocatore
-  // ============================================
-  async showRentPaymentModal() {
-    if (!this.currentPlayer) {
-      const alert = await this.alertController.create({
-        header: 'Errore',
-        message: 'Giocatore non identificato',
-        buttons: ['OK']
-      });
-      await alert.present();
-      return;
-    }
-
-    if (!this.currentSession?.players) {
-      const alert = await this.alertController.create({
-        header: 'Errore',
-        message: 'Sessione non disponibile',
-        buttons: ['OK']
-      });
-      await alert.present();
-      return;
-    }
-
-    // Filtra gli altri giocatori (escluso quello corrente)
-    const otherPlayers = this.currentSession.players.filter(p => p.id !== this.currentPlayer!.id);
-
-    if (otherPlayers.length === 0) {
-      const alert = await this.alertController.create({
-        header: 'Nessun Proprietario',
-        message: 'Non ci sono altri giocatori da cui pagare affitto.',
-        buttons: ['OK']
-      });
-      await alert.present();
-      return;
-    }
-
-    // Step 1: Selezione del proprietario
-    const actionSheet = await this.actionSheetController.create({
-      header: `${this.currentPlayer.name} paga affitto a:`,
-      subHeader: `Scegli il proprietario`,
-      buttons: [
-        ...otherPlayers.map(player => ({
-          text: `${player.name} (${player.propertiesCount} proprietà)`,
-          handler: () => {
-            this.showPlayerPropertiesForRent(player);
-          }
-        })),
-        {
-          text: 'Annulla',
-          role: 'cancel'
-        }
-      ]
-    });
-    await actionSheet.present();
-  }
-
-  // Step 2: Selezione della proprietà del giocatore scelto
-  private async showPlayerPropertiesForRent(owner: Player) {
-    const loading = await this.loadingController.create({
-      message: `Caricamento proprietà di ${owner.name}...`
-    });
-    await loading.present();
-
-    try {
-      const properties = await firstValueFrom(this.apiService.getPlayerProperties(owner.id));
-      const propertiesList = properties || [];
-
-      // Filtra solo proprietà non ipotecate
-      const rentableProperties = propertiesList.filter(prop => !prop.mortgaged);
-
-      loading.dismiss();
-
-      if (rentableProperties.length === 0) {
-        const alert = await this.alertController.create({
-          header: 'Nessuna Proprietà Affittabile',
-          message: `${owner.name} non ha proprietà disponibili per l'affitto (tutte ipotecate).`,
-          buttons: ['OK']
-        });
-        await alert.present();
-        return;
-      }
-
-      // NUOVO: Crea modal con ricerca per selezione proprietà
-      await this.showRentablePropertiesModal(owner, rentableProperties);
-
-    } catch (error) {
-      loading.dismiss();
-      console.error('Error loading player properties:', error);
-      const alert = await this.alertController.create({
-        header: 'Errore',
-        message: 'Errore nel caricamento delle proprietà',
-        buttons: ['OK']
-      });
-      await alert.present();
-    }
-  }
-
-  // NUOVO: Modal con ricerca per proprietà affittabili
-  private async showRentablePropertiesModal(owner: Player, properties: PropertyOwnership[]) {
-    console.log('Owner:', owner.name);
-
-    const propAlert = await this.alertController.create({
-      header: `Proprietà di ${owner.name}`,
-      message: 'Seleziona la proprietà per pagare l\'affitto',
-      inputs: properties.map((p, index) => {
-        // Creiamo una lista di opzioni per il radio senza opzione vuota iniziale
-        const rentInfo = this.calculateDisplayRent(p);
-        return {
-          name: 'property',               // stesso name per tutte
-          type: 'radio',
-          label: `${p.propertyName} - ${this.gameService.formatCurrency(rentInfo.rent)} ${rentInfo.description}`,
-          value: p.propertyId
-        }
-      }),
-      buttons: [
-        {
-          text: 'Indietro',
-          role: 'cancel',
-          handler: () => this.showRentPaymentModal()
-        },
-        {
-          text: 'Avanti',
-          handler: async (propertyId: number | string) => {
-
-            // ── Trova la proprietà selezionata
-            const selectedProp = properties.find(
-              p => p.propertyId === Number(propertyId)
-            );
-
-            if (!selectedProp) {
-              await this.presentError('Proprietà non trovata.');
-              return false;            // mantiene l’alert aperto
-            }
-
-            // === 2. SE È UTILITY, CHIEDI IL DADO ======================
-            if (selectedProp?.propertyType === 'UTILITY') {
-              const dicePrompt = await this.alertController.create({
-                header: 'Tiro di dado',
-                inputs: [{
-                  name: 'diceRoll',
-                  type: 'number',
-                  value: 7,
-                  min: 2,
-                  max: 12,
-                  placeholder: 'Risultato (2‑12)'
-                }],
-                buttons: [
-                  { text: 'Annulla', role: 'cancel' },
-                  {
-                    text: 'Paga',
-                    handler: async ({ diceRoll }) => {
-                      const roll = Number(diceRoll);
-                      if (!Number.isInteger(roll) || roll < 2 || roll > 12) {
-                        await this.presentError('Inserisci un valore tra 2 e 12.');
-                        return false;
-                      }
-                      await this.executeRentPayment(selectedProp, roll);
-                      return true;
-                    }
+            if (!connected) {
+               // Prova a riconnettersi dopo 5 secondi
+               setTimeout(() => {
+                  if (!this.webSocketService.isConnected()) {
+                     console.log('🔄 Attempting WebSocket reconnection...');
+                     this.webSocketService.connect(this.sessionCode);
                   }
-                ]
-              });
-              await dicePrompt.present();
-            } else {
-              // === 3. PROPRIETÀ NORMALI: NIENTE DADO =================
-              await this.executeRentPayment(selectedProp, 0);
+               }, 5000);
             }
+         })
+      );
+   }
 
-            return true;
-          }
-        }
-      ]
-    });
+   async showTradeModal() {
+      this.loadCurrentPlayerProperties()
+      console.log('KKKKKKKKKKKKKKKKKKKKKK');
+      try {
+         
+         const playerProperties = await firstValueFrom(this.apiService.getPlayerProperties(this.currentPlayer.id));
+         
+         
+         console.log('=== SHOWING UNIFIED TRADE MODAL ===', playerProperties);
+         if (!this.currentPlayer) {
+            await this.presentError('Giocatore non identificato');
+            return;
+         }
 
-    await propAlert.present();
-  }
+         // Verifica che ci siano proprietà del giocatore corrente
+         if (!playerProperties || playerProperties.length === 0) {
+            const alert = await this.alertController.create({
+               header: 'Nessuna Proprietà',
+               message: 'Non hai proprietà da trasferire.',
+               buttons: ['OK']
+            });
+            await alert.present();
+            return;
+         }
 
-  /** Alert di servizio per evitare duplicazione di codice */
-  // Removed duplicate presentError implementation
+         // Ottieni la sessione corrente per avere la lista degli altri giocatori
+         const session = await this.getCurrentSession();
+         if (!session) {
+            await this.presentError('Impossibile accedere alla sessione di gioco');
+            return;
+         }
 
-  // Utility per calcolare affitto da mostrare
-  private calculateDisplayRent(property: PropertyOwnership): { rent: number, description: string } {
-    // Se è ipotecata, affitto = 0
-    if (property.mortgaged) {
-      return {
-        rent: 0,
-        description: '(IPOTECATA - Affitto non dovuto)'
-      };
-    }
+         const otherPlayers = session.players.filter(p => p.id !== this.currentPlayer!.id);
+         if (otherPlayers.length === 0) {
+            const alert = await this.alertController.create({
+               header: 'Nessun Giocatore',
+               message: 'Non ci sono altri giocatori disponibili per lo scambio.',
+               buttons: ['OK']
+            });
+            await alert.present();
+            return;
+         }
 
-    // Per le società, calcola con dadi 7 come esempio
-    if (property.propertyType === 'UTILITY') {
-      return {
-        rent: 7 * 4,
-        description: '(da moltiplicare per il tiro di dado)'
-      };
-    }
+         // CORREZIONE: Usa direttamente currentPlayerProperties invece di filtrarle
+         // Queste sono già le proprietà del giocatore corrente caricate da loadCurrentPlayerProperties()
+         const transferableProperties = playerProperties;
 
-    // Per le stazioni
-    if (property.propertyType === 'RAILROAD') {
-      return {
-        rent: property.currentRent,
-        description: '(stazione)'
-      };
-    }
+         console.log('Transferable properties:', transferableProperties.length);
 
-    // Per le strade
-    let description = '';
-    if (property.hasHotel) {
-      description = '(Hotel)';
-    } else if (property.houses > 0) {
-      description = `(${property.houses} case)`;
-    } else {
-      description = '(base)';
-    }
 
-    return {
-      rent: property.currentRent,
-      description
-    };
-  }
+         // Crea e presenta il modal di scambio
+         const modal = await this.modalController.create({
+            component: TradeModalComponent,
+            componentProps: {
+               currentPlayer: this.currentPlayer,
+               availableProperties: transferableProperties,  // ✅ Proprietà corrette
+               otherPlayers: otherPlayers
+            },
+            cssClass: 'trade-modal',
+            backdropDismiss: false
+         });
 
-  private async executeRentPayment(property: PropertyOwnership, diceRoll: number) {
-    console.log('=== EXECUTING RENT PAYMENT ===');
-    console.log('Property:', property.propertyName, 'ID:', property.propertyId);
-    console.log('Dice roll:', diceRoll);
-    console.log('Current player:', this.currentPlayer?.id);
+         await modal.present();
 
-    if (!this.currentPlayer) {
-      const alert = await this.alertController.create({
-        header: 'Errore',
-        message: 'Giocatore corrente non identificato',
-        buttons: ['OK']
-      });
-      await alert.present();
-      return;
-    }
+         // Gestisci il risultato del modal
+         const { data } = await modal.onWillDismiss();
 
-    let loading: any = null;
+         if (data && data.success) {
+            console.log('✅ Trade completed successfully:', {
+               propertiesTransferred: data.propertiesTransferred,
+               recipient: data.recipient
+            });
 
-    try {
-      loading = await this.loadingController.create({
-        message: 'Pagamento affitto...'
-      });
-      await loading.present();
+            // Ricarica i dati di gioco
+            await this.loadGameData();
+         }
 
-      const transaction = await firstValueFrom(
-        this.apiService.payRent(property.propertyId, this.currentPlayer.id, diceRoll)
+      } catch (error) {
+         console.log('TERRRRRRRRRRRRRRRRRRRRRRRRRR');
+         console.error('Error showing trade modal:', error);
+         await this.presentError('Errore nell\'apertura del modal di scambio');
+      }
+   }
+
+   async loadCurrentPlayerProperties() {
+      if (!this.currentPlayer) {
+         console.log('No current player, clearing properties');
+         this.currentPlayerProperties = [];
+         return;
+      }
+
+      try {
+         console.log('=== LOADING CURRENT PLAYER PROPERTIES ===');
+         console.log('Loading properties for current player:', this.currentPlayer.name);
+
+         const properties = await firstValueFrom(this.apiService.getPlayerProperties(this.currentPlayer.id));
+         this.currentPlayerProperties = properties || [];
+
+         console.log('Current player properties loaded:', this.currentPlayerProperties.length);
+      } catch (error) {
+         console.error('Error loading current player properties:', error);
+         this.currentPlayerProperties = [];
+      }
+   }
+   subscribeToGameService() {
+      // Subscribe to current session changes
+      this.subscriptions.push(
+         this.gameService.getCurrentSession().subscribe((session: GameSession | null) => {
+            console.log('=== SESSION UPDATED IN GAME ===');
+            this.currentSession = session;
+            // AGGIUNTO: Sincronizza automaticamente current player quando cambia la sessione
+            this.syncCurrentPlayerData();
+         })
       );
 
-      console.log('✅ Rent payment completed:', transaction);
+      // Subscribe to current player changes
+      this.subscriptions.push(
+         this.gameService.getCurrentPlayer().subscribe((player: Player | null) => {
+            console.log('=== PLAYER UPDATED IN GAME ===');
+            this.currentPlayer = player;
+         })
+      );
+   }
 
-      // Chiudi loading PRIMA dell'alert
-      if (loading) {
-        await loading.dismiss();
-        loading = null;
+   async loadGameData() {
+      try {
+         console.log('=== LOADING GAME DATA ===');
+
+         // Load session data
+         const session = await firstValueFrom(this.apiService.getSession(this.sessionCode));
+         if (session) {
+            console.log('Session loaded from API:', session);
+            this.gameService.setCurrentSession(session);
+         } else {
+            console.error('No session found');
+            return;
+         }
+
+         // Load transactions
+         await this.refreshTransactions();
+
+      } catch (error) {
+         console.error('Error loading game data:', error);
       }
+   }
 
-      // Ricarica i dati del giocatore
-      await this.loadCurrentPlayer();
+   setupWebSocket() {
+      if (!this.sessionCode) return;
 
-      const alert = await this.alertController.create({
-        header: '✅ Affitto Pagato',
-        message: `Hai pagato ${this.gameService.formatCurrency(transaction.amount)} di affitto per "${property.propertyName}".`,
-        buttons: ['OK']
-      });
-      await alert.present();
+      console.log('=== SETTING UP WEBSOCKET FOR GAME ===');
+      this.webSocketService.connect(this.sessionCode);
 
-    } catch (error) {
-      console.error('❌ Rent payment error:', error);
-
-      // Chiudi loading PRIMA dell'alert di errore
-      if (loading) {
-        await loading.dismiss();
-        loading = null;
-      }
-
-      let errorMessage = 'Errore nel pagamento dell\'affitto';
-      if (error && typeof error === 'object') {
-        if ((error as any).status === 400) {
-          errorMessage = (error as any).error?.message || 'Transazione non valida o fondi insufficienti';
-        } else if ((error as any).status === 404) {
-          errorMessage = 'Proprietà o giocatore non trovato';
-        }
-      }
-
-      const alert = await this.alertController.create({
-        header: '❌ Errore Pagamento',
-        message: errorMessage,
-        buttons: ['OK']
-      });
-      await alert.present();
-    } finally {
-      // Sicurezza: assicurati che loading sia sempre chiuso
-      if (loading) {
-        try {
-          await loading.dismiss();
-        } catch (e) {
-          console.warn('Error dismissing loading:', e);
-        }
-      }
-    }
-  }
-  async loadCurrentPlayer() {
-    return new Promise<void>((resolve) => {
-      this.gameService.getCurrentPlayer().subscribe((player: Player | null) => {
-        this.currentPlayer = player;
-        console.log('Current player loaded:', this.currentPlayer?.name);
-        resolve();
-      });
-    });
-  }
-  // ============================================
-  // Trasferimento denaro semplificato
-  // ============================================
-  async showTransferModal() {
-    if (!this.currentPlayer) {
-      const alert = await this.alertController.create({
-        header: 'Errore',
-        message: 'Giocatore non identificato',
-        buttons: ['OK']
-      });
-      await alert.present();
-      return;
-    }
-
-    if (!this.currentSession?.players?.length) {
-      const alert = await this.alertController.create({
-        header: 'Errore',
-        message: 'Nessun giocatore disponibile',
-        buttons: ['OK']
-      });
-      await alert.present();
-      return;
-    }
-
-    console.log('=== SHOWING SIMPLIFIED TRANSFER MODAL ===');
-    console.log('Current player (sender):', this.currentPlayer);
-
-    // Filteriamo gli altri giocatori (escluso quello corrente)
-    const availableRecipients = this.currentSession.players.filter(p => p.id !== this.currentPlayer!.id);
-
-    if (availableRecipients.length === 0) {
-      const alert = await this.alertController.create({
-        header: 'Errore',
-        message: 'Non ci sono altri giocatori a cui trasferire denaro',
-        buttons: ['OK']
-      });
-      await alert.present();
-      return;
-    }
-
-    // Mostra selezione destinatario
-    const actionSheet = await this.actionSheetController.create({
-      header: `${this.currentPlayer.name} trasferisce denaro a:`,
-      subHeader: `Saldo disponibile: ${this.gameService.formatCurrency(this.currentPlayer.balance)}`,
-      buttons: [
-        ...availableRecipients.map(player => ({
-          text: `${player.name} (${this.gameService.formatCurrency(player.balance)})`,
-          handler: () => {
-            this.showTransferAmountModal(player);
-          }
-        })),
-        {
-          text: 'Annulla',
-          role: 'cancel'
-        }
-      ]
-    });
-    await actionSheet.present();
-  }
-
-  async showTransferAmountModal(toPlayer: Player) {
-    if (!this.currentPlayer) return;
-
-    const alert = await this.alertController.create({
-      header: 'Trasferimento Denaro',
-      message: `Da: ${this.currentPlayer.name}\nA: ${toPlayer.name}`,
-      inputs: [
-        {
-          name: 'amount',
-          type: 'number',
-          placeholder: 'Importo da trasferire',
-          min: 1,
-          max: this.currentPlayer.balance
-        },
-        {
-          name: 'description',
-          type: 'text',
-          placeholder: 'Descrizione (opzionale)',
-          value: `Trasferimento a ${toPlayer.name}`
-        }
-      ],
-      buttons: [
-        {
-          text: 'Annulla',
-          role: 'cancel'
-        },
-        {
-          text: 'Trasferisci',
-          handler: (data) => {
-            if (data.amount && data.amount > 0) {
-              this.performTransfer(this.currentPlayer!.id, toPlayer.id, data.amount, data.description || 'Trasferimento');
+      this.subscriptions.push(
+         this.webSocketService.getMessages().subscribe((message) => {
+            if (message) {
+               console.log('=== WEBSOCKET MESSAGE IN GAME ===', message);
+               this.handleWebSocketMessage(message);
             }
-          }
-        }
-      ]
-    });
-    await alert.present();
-  }
+         })
+      );
+   }
 
-  async performTransfer(fromPlayerId: number, toPlayerId: number, amount: number, description: string) {
-    const loading = await this.loadingController.create({
-      message: 'Trasferimento in corso...'
-    });
-    await loading.present();
+   handleWebSocketMessage(message: any) {
+      console.log('📨 WebSocket message received in game:', message);
 
-    try {
-      console.log('=== PERFORMING TRANSFER ===');
-      console.log('From:', fromPlayerId, 'To:', toPlayerId, 'Amount:', amount);
+      switch (message.type) {
+         case 'BALANCE_UPDATE':
+            console.log('💰 Balance updated, reloading data');
+            this.handleBalanceUpdate(message.data);
+            break;
 
-      await firstValueFrom(this.apiService.transferMoney(fromPlayerId, toPlayerId, amount, description));
-      console.log('Transfer completed successfully');
-    } catch (error) {
-      console.error('Transfer error:', error);
-      const alert = await this.alertController.create({
-        header: 'Errore',
-        message: 'Errore nel trasferimento. Verifica i fondi disponibili.',
-        buttons: ['OK']
-      });
-      await alert.present();
-    } finally {
-      loading.dismiss();
-    }
-  }
+         case 'PROPERTY_PURCHASED':
+         case 'PROPERTY_UPDATE':
+            console.log('🏠 Property updated, refreshing data');
+            this.loadGameData();
+            this.syncCurrentPlayerData();
+            this.refreshTransactions();
+            break;
 
-  // ============================================
-  // Pagamenti banca semplificati
-  // ============================================
-  async showBankPaymentFromBankModal() {
-    if (!this.currentPlayer) {
-      const alert = await this.alertController.create({
-        header: 'Errore',
-        message: 'Giocatore non identificato',
-        buttons: ['OK']
-      });
-      await alert.present();
-      return;
-    }
+         case 'TRANSACTION_UPDATE':
+            console.log('💳 Transaction updated, refreshing transactions');
+            this.refreshTransactions();
+            this.syncCurrentPlayerData();
+            break;
 
-    const alert = await this.alertController.create({
-      header: 'Ricevi dalla Banca',
-      message: `Giocatore: ${this.currentPlayer.name}`,
-      inputs: [
-        {
-          name: 'amount',
-          type: 'number',
-          placeholder: 'Importo da ricevere',
-          min: 1
-        },
-        {
-          name: 'description',
-          type: 'text',
-          placeholder: 'Descrizione',
-          value: 'Pagamento dalla Banca'
-        }
-      ],
-      buttons: [
-        {
-          text: 'Annulla',
-          role: 'cancel'
-        },
-        {
-          text: 'Ricevi',
-          handler: (data) => {
-            if (data.amount && data.amount > 0) {
-              this.performBankPayment(this.currentPlayer!.id, data.amount, data.description, true);
+         case 'SESSION_UPDATE':
+            console.log('🔄 Session updated, refreshing all data');
+            this.loadGameData();
+            break;
+
+         case 'GAME_ENDED':
+            console.log('🏁 Game ended');
+            this.showToast('La partita è terminata', 'warning');
+            this.router.navigate(['/home']);
+            break;
+
+         case 'PLAYER_BANKRUPT':
+            console.log('💔 Player bankruptcy');
+            this.showToast(`${message.data.bankruptPlayer} è in bancarotta!`, 'warning');
+            this.loadGameData();
+            break;
+
+         default:
+            console.log('❓ Unknown message type in game:', message.type);
+      }
+   }
+
+   private handleBalanceUpdate(data: any) {
+      console.log('💰 Handling balance update:', data);
+
+      try {
+         // Aggiorna i dati della sessione
+         this.loadGameData();
+
+         // Aggiorna le transazioni
+         this.refreshTransactions();
+
+         // Sincronizza il current player
+         this.syncCurrentPlayerData();
+
+         // AGGIUNTO: Mostra notifica se il current player è coinvolto
+         if (data.type) {
+            let message = '';
+            switch (data.type) {
+               case 'PLAYER_TO_PLAYER_TRANSFER':
+                  if (data.fromPlayer?.id === this.currentPlayer?.id || data.toPlayer?.id === this.currentPlayer?.id) {
+                     const amount = this.gameService.formatCurrency(data.transaction?.amount || 0);
+                     message = `Trasferimento di ${amount} completato`;
+                  }
+                  break;
+               case 'PLAYER_TO_BANK_PAYMENT':
+                  if (data.player?.id === this.currentPlayer?.id) {
+                     const amount = this.gameService.formatCurrency(data.transaction?.amount || 0);
+                     message = `Pagamento di ${amount} alla Banca completato`;
+                  }
+                  break;
+               case 'BANK_TO_PLAYER_PAYMENT':
+                  if (data.player?.id === this.currentPlayer?.id) {
+                     const amount = this.gameService.formatCurrency(data.transaction?.amount || 0);
+                     message = `Ricevuto ${amount} dalla Banca`;
+                  }
+                  break;
             }
-          }
-        }
-      ]
-    });
-    await alert.present();
-  }
 
-  async showBankPaymentToBankModal() {
-    if (!this.currentPlayer) {
-      const alert = await this.alertController.create({
-        header: 'Errore',
-        message: 'Giocatore non identificato',
-        buttons: ['OK']
-      });
-      await alert.present();
-      return;
-    }
-
-    const alert = await this.alertController.create({
-      header: 'Paga alla Banca',
-      message: `Giocatore: ${this.currentPlayer.name}\nSaldo: ${this.gameService.formatCurrency(this.currentPlayer.balance)}`,
-      inputs: [
-        {
-          name: 'amount',
-          type: 'number',
-          placeholder: 'Importo da pagare',
-          min: 1,
-          max: this.currentPlayer.balance
-        },
-        {
-          name: 'description',
-          type: 'text',
-          placeholder: 'Descrizione',
-          value: 'Pagamento alla Banca'
-        }
-      ],
-      buttons: [
-        {
-          text: 'Annulla',
-          role: 'cancel'
-        },
-        {
-          text: 'Paga',
-          handler: (data) => {
-            if (data.amount && data.amount > 0) {
-              this.performBankPayment(this.currentPlayer!.id, data.amount, data.description, false);
+            if (message) {
+               this.showToast(message, 'success');
             }
-          }
-        }
-      ]
-    });
-    await alert.present();
-  }
-
-  async performBankPayment(playerId: number, amount: number, description: string, isFromBank: boolean) {
-    const loading = await this.loadingController.create({
-      message: isFromBank ? 'Ricevendo dalla Banca...' : 'Pagando alla Banca...'
-    });
-    await loading.present();
-
-    try {
-      console.log('=== PERFORMING BANK PAYMENT ===');
-      console.log('Player:', playerId, 'Amount:', amount, 'From bank:', isFromBank);
-
-      if (isFromBank) {
-        await firstValueFrom(this.apiService.payFromBank(playerId, amount, description));
-      } else {
-        await firstValueFrom(this.apiService.payToBank(playerId, amount, description));
+         }
+      } catch (error) {
+         console.error('❌ Error handling balance update:', error);
       }
-      console.log('Bank payment completed successfully');
-    } catch (error) {
-      console.error('Bank payment error:', error);
-      const alert = await this.alertController.create({
-        header: 'Errore',
-        message: 'Errore nel pagamento. Verifica i fondi disponibili.',
-        buttons: ['OK']
+   }
+
+   // AGGIUNTO: Metodo per mostrare toast notifications (aggiungere ToastController se necessario)
+   private async showToast(message: string, color: 'success' | 'warning' | 'danger' = 'success') {
+      console.log(`🔔 ${color.toUpperCase()}: ${message}`);
+
+      // Opzionale: Se vuoi aggiungere ToastController
+      /*
+      const toast = await this.toastController.create({
+        message,
+        duration: 3000,
+        color,
+        position: 'top'
       });
-      await alert.present();
-    } finally {
-      loading.dismiss();
-    }
-  }
+      await toast.present();
+      */
+   }
 
-  // ============================================
-  // AGGIORNATO: Modal proprietà con player preselezionato
-  // ============================================
-  async showPropertiesModal() {
-    console.log('=== OPENING PROPERTIES MODAL ===');
-    const modal = await this.modalController.create({
-      component: PropertiesModalComponent,
-      cssClass: 'properties-modal',
-      componentProps: {
-        currentPlayerOnly: true // Passa parametro per limitare alle azioni del giocatore corrente
+   // AGGIUNTO: Metodo per controllare la connessione WebSocket
+   private checkWebSocketConnection() {
+      if (!this.webSocketService.isConnected()) {
+         console.log('⚠️ WebSocket disconnesso, tentativo riconnessione...');
+         this.webSocketService.forceReconnect();
       }
-    });
-
-    await modal.present();
-
-    const { data } = await modal.onDidDismiss();
-    if (data?.refresh) {
-      console.log('Refreshing game data after properties modal');
-      this.loadGameData();
-    }
-  }
+   }
 
 
+   // NUOVO: Metodo per sincronizzare i dati del current player con la sessione aggiornata
+   private syncCurrentPlayerData() {
+      if (!this.currentPlayer || !this.currentSession) return;
 
-  // ============================================
-  // NUOVO: Modal per trasferimento multiplo proprietà
-  // ============================================
-  async showMultiPropertyTransferModal() {
-    if (!this.currentPlayer) {
-      const alert = await this.alertController.create({
-        header: 'Errore',
-        message: 'Giocatore non identificato',
-        buttons: ['OK']
-      });
-      await alert.present();
-      return;
-    }
+      // Trova il player aggiornato nella sessione corrente
+      const updatedPlayer = this.currentSession.players.find(p => p.id === this.currentPlayer!.id);
+      if (updatedPlayer) {
+         console.log('Syncing current player data:', updatedPlayer);
+         this.gameService.setCurrentPlayer(updatedPlayer);
+      }
+   }
 
-    try {
-      const loading = await this.loadingController.create({
-        message: 'Caricamento proprietà...'
-      });
-      await loading.present();
+   async refreshTransactions() {
+      try {
+         console.log('=== REFRESHING TRANSACTIONS ===');
+         const transactions = await firstValueFrom(this.apiService.getTransactions(this.sessionCode));
+         this.recentTransactions = transactions || [];
+         console.log('Transactions loaded:', this.recentTransactions.length);
+      } catch (error) {
+         console.error('Error loading transactions:', error);
+         this.recentTransactions = [];
+      }
+   }
 
-      const properties = await firstValueFrom(this.apiService.getPlayerProperties(this.currentPlayer.id));
-      const propertiesList = properties || [];
+   selectPlayer(player: Player) {
+      console.log('Player selected:', player);
+      this.selectedPlayer = player;
+   }
 
-      // CORREZIONE: Filtra proprietà trasferibili (senza edifici)
-      const transferableProperties = propertiesList.filter(p => p.houses === 0 && !p.hasHotel);
-
-      loading.dismiss();
-
-      if (transferableProperties.length === 0) {
-        const alert = await this.alertController.create({
-          header: 'Nessuna Proprietà Trasferibile',
-          message: 'Non hai proprietà senza edifici da trasferire. Vendi prima case e hotel.',
-          buttons: ['OK']
-        });
-        await alert.present();
-        return;
+   // ============================================
+   // NUOVO: Pagamento affitto migliorato - Step 1: Selezione giocatore
+   // ============================================
+   async showRentPaymentModal() {
+      if (!this.currentPlayer) {
+         const alert = await this.alertController.create({
+            header: 'Errore',
+            message: 'Giocatore non identificato',
+            buttons: ['OK']
+         });
+         await alert.present();
+         return;
       }
 
-      // CORREZIONE: Ottieni la sessione corrente in modo sicuro
-      const session = await this.getCurrentSession();
-      if (!session) {
-        const alert = await this.alertController.create({
-          header: 'Errore',
-          message: 'Sessione non disponibile.',
-          buttons: ['OK']
-        });
-        await alert.present();
-        return;
+      if (!this.currentSession?.players) {
+         const alert = await this.alertController.create({
+            header: 'Errore',
+            message: 'Sessione non disponibile',
+            buttons: ['OK']
+         });
+         await alert.present();
+         return;
       }
 
-      const otherPlayers = session.players.filter(p => p.id !== this.currentPlayer?.id) || [];
+      // Filtra gli altri giocatori (escluso quello corrente)
+      const otherPlayers = this.currentSession.players.filter(p => p.id !== this.currentPlayer!.id);
 
       if (otherPlayers.length === 0) {
-        const alert = await this.alertController.create({
-          header: 'Errore',
-          message: 'Non ci sono altri giocatori disponibili.',
-          buttons: ['OK']
-        });
-        await alert.present();
-        return;
+         const alert = await this.alertController.create({
+            header: 'Nessun Proprietario',
+            message: 'Non ci sono altri giocatori da cui pagare affitto.',
+            buttons: ['OK']
+         });
+         await alert.present();
+         return;
       }
 
-      // Mostra modal di selezione
-      await this.showMultiTransferSelectionModal(transferableProperties, otherPlayers);
-
-    } catch (error) {
-      console.error('Error loading properties for transfer:', error);
-      const alert = await this.alertController.create({
-        header: 'Errore',
-        message: 'Errore nel caricamento delle proprietà',
-        buttons: ['OK']
-      });
-      await alert.present();
-    }
-  }
-
-  private async getCurrentSession(): Promise<GameSession | null> {
-    return new Promise((resolve) => {
-      this.gameService.getCurrentSession().subscribe(session => {
-        resolve(session);
-      });
-    });
-  }
-  /* ***************************************************************** */
-  /*  STEP 0 – entry point                                             */
-  /* ***************************************************************** */
-  async showMultiTransferSelectionModal(
-    properties: PropertyOwnership[],
-    otherPlayers: Player[]
-  ) {
-    // Avvia lo step 1
-    await this.stepSelectRecipient(properties, otherPlayers);
-  }
-
-  /* ***************************************************************** */
-  /*  STEP 1 – destinatario                                            */
-  /* ***************************************************************** */
-  private async stepSelectRecipient(
-    properties: PropertyOwnership[],
-    otherPlayers: Player[]
-  ) {
-    const alert = await this.alertController.create({
-      header: 'Scambio Negoziato',
-      message: 'Seleziona il destinatario dello scambio',
-      inputs: otherPlayers.map(p => ({
-        name: 'recipientId',
-        type: 'radio',
-        label: `${p.name} (${this.gameService.formatCurrency(p.balance)})`,
-        value: p.id
-      })),
-      buttons: [
-        { text: 'Annulla', role: 'cancel' },
-        {
-          text: 'Avanti',
-          handler: async (recipientId: string) => {
-            if (!recipientId) return false;             // resta aperto
-            await this.stepSelectProperties(
-              Number(recipientId),
-              properties,
-              otherPlayers
-            );
-            return true;                                // chiude lo step 1
-          }
-        }
-      ]
-    });
-    await alert.present();
-  }
-
-  /* ***************************************************************** */
-  /*  STEP 2 – proprietà da trasferire                                 */
-  /* ***************************************************************** */
-  private async stepSelectProperties(
-    recipientId: number,
-    properties: PropertyOwnership[],
-    otherPlayers: Player[]
-  ) {
-    const inputs = properties.map(p => ({
-      name: 'selectedProps',
-      type: 'checkbox' as const,
-      label: `${p.propertyName} (${this.gameService.formatCurrency(p.propertyPrice)})${p.mortgaged ? ' [IPOTECATA]' : ''}`,
-      value: p.id
-    }));
-
-    const alert = await this.alertController.create({
-      header: 'Proprietà da trasferire',
-      message: 'Spunta tutte le proprietà da includere nello scambio',
-      inputs,
-      buttons: [
-        { text: 'Indietro', role: 'cancel' },
-        {
-          text: 'Avanti',
-          handler: async (selectedIds: string[]) => {
-            if (!selectedIds?.length) return false;
-            await this.stepCompensation(
-              recipientId,
-              selectedIds.map(Number),  // converte in number[]
-              otherPlayers,
-              properties
-            );
-            return true;                // chiude lo step 2
-          }
-        }
-      ]
-    });
-    await alert.present();
-  }
-
-  /* ***************************************************************** */
-  /*  STEP 3 – compenso + descrizione                                  */
-  /* ***************************************************************** */
-  private async stepCompensation(
-    recipientId: number,
-    selectedPropertyIds: number[],
-    otherPlayers: Player[],
-    properties: PropertyOwnership[]
-  ) {
-    const alert = await this.alertController.create({
-      header: 'Definisci compenso',
-      message: 'Imposta eventuale compenso e descrizione',
-      inputs: [
-        /* Tipologia compenso */
-        {
-          name: 'compensationType',
-          type: 'radio',
-          label: 'Nessun compenso',
-          value: 'none',
-          checked: true
-        },
-        {
-          name: 'compensationType',
-          type: 'radio',
-          label: 'Ricevo denaro dal destinatario',
-          value: 'receive'
-        },
-        {
-          name: 'compensationType',
-          type: 'radio',
-          label: 'Pago denaro al destinatario',
-          value: 'pay'
-        },
-        /* Importo */
-        {
-          name: 'compensationAmount',
-          type: 'number',
-          placeholder: 'Importo compenso',
-          value: 0,
-          min: 0
-        },
-        /* Descrizione libera */
-        {
-          name: 'description',
-          type: 'text',
-          placeholder: 'Descrizione dello scambio',
-          value: 'Scambio negoziato'
-        }
-      ],
-      buttons: [
-        { text: 'Indietro', role: 'cancel' },
-        {
-          text: 'Esegui Scambio',
-          handler: async (data) => {
-            /* ---------- Validazioni locali ---------- */
-            const amount = Number(data.compensationAmount) || 0;
-            if (amount < 0) {
-              await this.presentError('Il compenso non può essere negativo.');
-              return false;
+      // Step 1: Selezione del proprietario
+      const actionSheet = await this.actionSheetController.create({
+         header: `${this.currentPlayer.name} paga affitto a:`,
+         subHeader: `Scegli il proprietario`,
+         buttons: [
+            ...otherPlayers.map(player => ({
+               text: `${player.name} (${player.propertiesCount} proprietà)`,
+               handler: () => {
+                  this.showPlayerPropertiesForRent(player);
+               }
+            })),
+            {
+               text: 'Annulla',
+               role: 'cancel'
             }
-
-            /* ---------- Costruisci oggetto finale ---------- */
-            const transferData = {
-              recipientId,
-              propertyIds: selectedPropertyIds,
-              compensationType: data.compensationType as 'none' | 'receive' | 'pay',
-              compensationAmount: amount,
-              description: data.description?.trim() || 'Scambio negoziato'
-            };
-
-            /* ---------- Validazione business e azione ---------- */
-            return await this.validateAndExecuteSimpleMultiTransfer(
-              transferData,
-              properties   // per le verifiche interne del tuo metodo
-            );
-          }
-        }
-      ]
-    });
-
-    await alert.present();
-  }
-
-  /* ***************************************************************** */
-  /*  Helper: errore rapido                                            */
-  /* ***************************************************************** */
-  private async presentError(message: string) {
-    const err = await this.alertController.create({
-      header: 'Errore',
-      message,
-      buttons: ['OK']
-    });
-    await err.present();
-  }
-
-
-  private async validateAndExecuteSimpleMultiTransfer(data: any, allProperties: PropertyOwnership[]): Promise<boolean> {
-    console.log('=== VALIDATING SIMPLE MULTI TRANSFER ===', data);
-
-    // Validazione destinatario
-    if (!data.recipientId) {
-      const errorAlert = await this.alertController.create({
-        header: 'Errore',
-        message: 'Seleziona il giocatore destinatario.',
-        buttons: ['OK']
+         ]
       });
-      await errorAlert.present();
-      return false;
-    }
+      await actionSheet.present();
+   }
 
-    // Validazione proprietà
-    if (!data.selectedProperties || data.selectedProperties.length === 0) {
-      const errorAlert = await this.alertController.create({
-        header: 'Errore',
-        message: 'Seleziona almeno una proprietà da trasferire.',
-        buttons: ['OK']
-      });
-      await errorAlert.present();
-      return false;
-    }
-
-    // Preparazione dati
-    const selectedIds = Array.isArray(data.selectedProperties) ?
-      data.selectedProperties : [data.selectedProperties];
-
-    const recipientId = parseInt(data.recipientId);
-
-    // Calcolo compenso
-    let compensationAmount = 0;
-    if (data.compensationType !== 'none') {
-      compensationAmount = parseFloat(data.compensationAmount) || 0;
-      if (compensationAmount <= 0) {
-        const errorAlert = await this.alertController.create({
-          header: 'Errore',
-          message: 'Inserisci un importo valido per il compenso.',
-          buttons: ['OK']
-        });
-        await errorAlert.present();
-        return false;
-      }
-
-      // Se paga al destinatario, rendi negativo
-      if (data.compensationType === 'pay') {
-        compensationAmount = -compensationAmount;
-      }
-    }
-
-    // Conferma
-    const confirmed = await this.showSimpleMultiTransferConfirmation(
-      selectedIds,
-      recipientId,
-      compensationAmount,
-      data.description,
-      allProperties
-    );
-
-    if (!confirmed) {
-      return false;
-    }
-
-    // Esecuzione
-    return await this.executeSimpleMultiTransfer(
-      selectedIds.map(id => parseInt(id)),
-      recipientId,
-      compensationAmount,
-      data.description
-    );
-  }
-
-  // NUOVO: Conferma semplificata per trasferimenti multipli
-  private async showSimpleMultiTransferConfirmation(
-    selectedIds: string[],
-    recipientId: number,
-    compensationAmount: number,
-    description: string,
-    allProperties: PropertyOwnership[]
-  ): Promise<boolean> {
-
-    const selectedProperties = allProperties.filter(p =>
-      selectedIds.includes(p.id.toString())
-    );
-
-    const totalValue = selectedProperties.reduce((sum, prop) => sum + prop.propertyPrice, 0);
-
-    let message = `CONFERMA SCAMBIO MULTIPLO\n\n`;
-    message += `Proprietà da trasferire (${selectedProperties.length}):\n`;
-    selectedProperties.forEach(prop => {
-      message += `• ${prop.propertyName} (${this.gameService.formatCurrency(prop.propertyPrice)})\n`;
-    });
-    message += `\nValore totale: ${this.gameService.formatCurrency(totalValue)}\n`;
-
-    if (compensationAmount > 0) {
-      message += `\nRiceverai: ${this.gameService.formatCurrency(compensationAmount)}`;
-    } else if (compensationAmount < 0) {
-      message += `\nPagherai: ${this.gameService.formatCurrency(-compensationAmount)}`;
-    } else {
-      message += `\nNessun compenso monetario`;
-    }
-
-    if (description && description.trim()) {
-      message += `\n\nDescrizione: ${description}`;
-    }
-
-    return new Promise(async (resolve) => {
-      const alert = await this.alertController.create({
-        header: 'Conferma Scambio',
-        message,
-        buttons: [
-          {
-            text: 'Annulla',
-            handler: () => resolve(false)
-          },
-          {
-            text: 'Conferma',
-            handler: () => resolve(true)
-          }
-        ]
-      });
-      await alert.present();
-    });
-  }
-
-  // NUOVO: Esecuzione semplificata per trasferimenti multipli
-  private async executeSimpleMultiTransfer(
-    ownershipIds: number[],
-    recipientId: number,
-    compensationAmount: number,
-    description: string
-  ): Promise<boolean> {
-
-    let loading: any = null;
-
-    try {
-      loading = await this.loadingController.create({
-        message: 'Esecuzione scambio...'
+   // Step 2: Selezione della proprietà del giocatore scelto
+   private async showPlayerPropertiesForRent(owner: Player) {
+      const loading = await this.loadingController.create({
+         message: `Caricamento proprietà di ${owner.name}...`
       });
       await loading.present();
 
-      console.log('=== EXECUTING SIMPLE MULTI TRANSFER ===');
-      console.log('Ownership IDs:', ownershipIds);
-      console.log('Recipient ID:', recipientId);
-      console.log('Compensation:', compensationAmount);
-
-      const result = await firstValueFrom(
-        this.apiService.transferMultipleProperties(
-          ownershipIds,
-          recipientId,
-          compensationAmount,
-          description
-        )
-      );
-
-      console.log('✅ Multi transfer completed successfully:', result);
-
-      // Ricarica i dati
-      await this.loadCurrentPlayer();
-
-      // Chiudi loading PRIMA dell'alert
-      if (loading) {
-        await loading.dismiss();
-        loading = null;
-      }
-
-      // Mostra successo
-      const alert = await this.alertController.create({
-        header: 'Scambio Completato',
-        message: `Scambio di ${ownershipIds.length} proprietà completato con successo!`,
-        buttons: ['OK']
-      });
-      await alert.present();
-
-      return true;
-
-    } catch (error) {
-      console.error('❌ Multi transfer error:', error);
-
-      // Chiudi loading PRIMA dell'alert di errore
-      if (loading) {
-        await loading.dismiss();
-        loading = null;
-      }
-
-      let errorMessage = 'Errore durante lo scambio.';
-      if (error && typeof error === 'object') {
-        if ((error as any).status === 400) {
-          errorMessage = (error as any).error?.message || 'Dati non validi o fondi insufficienti.';
-        } else if ((error as any).status === 404) {
-          errorMessage = 'Proprietà o giocatori non trovati.';
-        }
-      }
-
-      const alert = await this.alertController.create({
-        header: 'Errore Scambio',
-        message: errorMessage,
-        buttons: ['OK']
-      });
-      await alert.present();
-
-      return false;
-
-    } finally {
-      // Sicurezza: assicurati che loading sia sempre chiuso
-      if (loading) {
-        try {
-          await loading.dismiss();
-        } catch (e) {
-          console.warn('Error dismissing loading:', e);
-        }
-      }
-    }
-  }
-
-  /**
-   * NUOVO: Validazione ed esecuzione trasferimento multiplo
-   */
-  private async validateAndExecuteMultiTransfer(data: any, allProperties: PropertyOwnership[]): Promise<boolean> {
-    console.log('=== VALIDATING MULTI TRANSFER ===', data);
-
-    // Validazione destinatario
-    if (!data.recipientId) {
-      await this.showValidationError('Destinatario Mancante', 'Seleziona il giocatore destinatario.');
-      return false;
-    }
-
-    // Validazione proprietà
-    if (!data.selectedProperties || data.selectedProperties.length === 0) {
-      await this.showValidationError('Proprietà Mancanti', 'Seleziona almeno una proprietà da trasferire.');
-      return false;
-    }
-
-    // Preparazione dati
-    const selectedIds = Array.isArray(data.selectedProperties) ? data.selectedProperties : [data.selectedProperties];
-    const selectedProperties = allProperties.filter(p => selectedIds.includes(p.id.toString()));
-    const recipientId = parseInt(data.recipientId);
-
-    // CORREZIONE: Ottieni recipient in modo sicuro
-    let recipient: Player | undefined;
-    try {
-      const session = await this.getCurrentSession();
-      recipient = session?.players?.find(p => p.id === recipientId);
-    } catch (error) {
-      console.error('Error getting session for recipient:', error);
-    }
-
-    if (!recipient) {
-      await this.showValidationError('Errore', 'Destinatario non trovato.');
-      return false;
-    }
-
-    // Calcolo compenso
-    let compensationAmount = 0;
-    if (data.compensationType === 'receive' || data.compensationType === 'pay') {
-      compensationAmount = parseFloat(data.compensationAmount) || 0;
-      if (compensationAmount <= 0) {
-        await this.showValidationError('Compenso Non Valido', 'Inserisci un importo valido per il compenso.');
-        return false;
-      }
-
-      // Se "pay", il compenso è negativo (il current player paga)
-      if (data.compensationType === 'pay') {
-        compensationAmount = -compensationAmount;
-      }
-    }
-
-    // Verifica fondi per il pagamento
-    if (compensationAmount < 0 && this.currentPlayer!.balance < Math.abs(compensationAmount)) {
-      await this.showValidationError('Fondi Insufficienti', 'Non hai abbastanza denaro per il pagamento.');
-      return false;
-    }
-
-    if (compensationAmount > 0 && recipient.balance < compensationAmount) {
-      await this.showValidationError('Fondi Insufficienti', `${recipient.name} non ha abbastanza denaro per il compenso.`);
-      return false;
-    }
-
-    // Mostra conferma
-    const confirmed = await this.showTransferConfirmation(selectedProperties, recipient, compensationAmount, data.description);
-    if (!confirmed) {
-      return false;
-    }
-
-    // Esegui trasferimento
-    return await this.executeMultiPropertyTransfer(selectedProperties, recipientId, compensationAmount, data.description);
-  }
-
-  /**
-   * NUOVO: Mostra errore di validazione
-   */
-  private async showValidationError(header: string, message: string): Promise<void> {
-    const alert = await this.alertController.create({
-      header: `❌ ${header}`,
-      message,
-      buttons: ['OK']
-    });
-    await alert.present();
-  }
-
-
-
-  /**
-   * NUOVO: Mostra conferma trasferimento
-   */
-  private async showTransferConfirmation(
-    properties: PropertyOwnership[],
-    recipient: Player,
-    compensationAmount: number,
-    description: string
-  ): Promise<boolean> {
-    const totalValue = properties.reduce((sum, p) => sum + p.propertyPrice, 0);
-
-    let message = `🔄 CONFERMA SCAMBIO NEGOZIATO\n\n`;
-    message += `📤 DA: ${this.currentPlayer?.name}\n`;
-    message += `📥 A: ${recipient.name}\n\n`;
-    message += `🏠 PROPRIETÀ (${properties.length}):\n`;
-
-    properties.forEach((p, index) => {
-      message += `${index + 1}. ${p.propertyName} (${this.gameService.formatCurrency(p.propertyPrice)})\n`;
-    });
-
-    message += `\n💎 Valore totale: ${this.gameService.formatCurrency(totalValue)}\n`;
-
-    if (compensationAmount > 0) {
-      message += `\n💰 ${recipient.name} pagherà: ${this.gameService.formatCurrency(compensationAmount)}`;
-    } else if (compensationAmount < 0) {
-      message += `\n💸 Tu pagherai: ${this.gameService.formatCurrency(Math.abs(compensationAmount))}`;
-    } else {
-      message += `\n🎁 Nessun compenso monetario`;
-    }
-
-    if (description && description.trim()) {
-      message += `\n\n📝 ${description}`;
-    }
-
-    return new Promise(async (resolve) => {
-      const alert = await this.alertController.create({
-        header: 'Conferma Scambio',
-        message,
-        buttons: [
-          {
-            text: 'Annulla',
-            handler: () => resolve(false)
-          },
-          {
-            text: 'Conferma Scambio',
-            handler: () => resolve(true)
-          }
-        ]
-      });
-      await alert.present();
-    });
-  }
-
-  /**
-   * CORRETTO: Esecuzione trasferimento multiplo
-   */
-  private async executeMultiPropertyTransfer(
-    properties: PropertyOwnership[],
-    recipientId: number,
-    compensationAmount: number,
-    description: string
-  ): Promise<boolean> {
-
-    const loading = await this.loadingController.create({
-      message: 'Esecuzione scambio...'
-    });
-    await loading.present();
-
-    try {
-      console.log('=== EXECUTING MULTI PROPERTY TRANSFER ===');
-      console.log('Properties:', properties.map(p => p.propertyName));
-      console.log('Recipient ID:', recipientId);
-      console.log('Compensation:', compensationAmount);
-
-      const ownershipIds = properties.map(p => p.id);
-
-      // CORREZIONE: Usa il nuovo metodo API
-      const result = await firstValueFrom(
-        this.apiService.transferMultipleProperties(ownershipIds, recipientId, compensationAmount, description)
-      );
-
-      console.log('✅ Multi transfer completed successfully:', result.length);
-
-      // Ricarica i dati
-      await this.loadGameData();
-
-      // CORREZIONE: Ottieni recipient name in modo sicuro
-      let recipientName = 'Giocatore';
       try {
-        const session = await this.getCurrentSession();
-        const recipient = session?.players?.find(p => p.id === recipientId);
-        if (recipient) {
-          recipientName = recipient.name;
-        }
+         const properties = await firstValueFrom(this.apiService.getPlayerProperties(owner.id));
+         const propertiesList = properties || [];
+
+         // Filtra solo proprietà non ipotecate
+         const rentableProperties = propertiesList.filter(prop => !prop.mortgaged);
+
+         loading.dismiss();
+
+         if (rentableProperties.length === 0) {
+            const alert = await this.alertController.create({
+               header: 'Nessuna Proprietà Affittabile',
+               message: `${owner.name} non ha proprietà disponibili per l'affitto (tutte ipotecate).`,
+               buttons: ['OK']
+            });
+            await alert.present();
+            return;
+         }
+
+         // NUOVO: Crea modal con ricerca per selezione proprietà
+         await this.showRentablePropertiesModal(owner, rentableProperties);
+
       } catch (error) {
-        console.warn('Could not get recipient name:', error);
+         loading.dismiss();
+         console.error('Error loading player properties:', error);
+         const alert = await this.alertController.create({
+            header: 'Errore',
+            message: 'Errore nel caricamento delle proprietà',
+            buttons: ['OK']
+         });
+         await alert.present();
       }
+   }
 
-      // Mostra successo
-      const alert = await this.alertController.create({
-        header: '✅ Scambio Completato',
-        message: `${properties.length} proprietà trasferite con successo a ${recipientName}!`,
-        buttons: ['OK']
-      });
-      await alert.present();
+   // NUOVO: Modal con ricerca per proprietà affittabili
+   private async showRentablePropertiesModal(owner: Player, properties: PropertyOwnership[]) {
+      console.log('Owner:', owner.name);
 
-      return true; // Chiude il modal
-
-    } catch (error) {
-      console.error('❌ Multi transfer error:', error);
-
-      let errorMessage = 'Errore durante il trasferimento.';
-      if (error.status === 400) {
-        errorMessage = error.error?.message || 'Dati non validi o fondi insufficienti.';
-      }
-
-      const alert = await this.alertController.create({
-        header: '❌ Errore Scambio',
-        message: errorMessage,
-        buttons: ['OK']
-      });
-      await alert.present();
-
-      return false; // Mantiene aperto il modal
-
-    } finally {
-      loading.dismiss();
-    }
-  }
-
-  private async performMultiPropertyTransfer(
-    properties: PropertyOwnership[],
-    recipientId: number,
-    transferAmount: number,
-    description: string
-  ) {
-    const loading = await this.loadingController.create({
-      message: 'Trasferimento in corso...'
-    });
-    await loading.present();
-
-    try {
-      console.log('=== PERFORMING MULTI PROPERTY TRANSFER ===');
-
-      // 1. Trasferisci tutte le proprietà
-      for (const property of properties) {
-        await firstValueFrom(this.apiService.transferProperty(property.id, recipientId, 0));
-      }
-
-      // 2. Gestisci il compenso monetario se presente
-      if (transferAmount !== 0) {
-        if (transferAmount > 0) {
-          // Il current player riceve denaro dal destinatario
-          await firstValueFrom(this.apiService.transferMoney(
-            recipientId,
-            this.currentPlayer!.id,
-            transferAmount,
-            `Compenso per ${description}`
-          ));
-        } else {
-          // Il current player paga denaro al destinatario
-          await firstValueFrom(this.apiService.transferMoney(
-            this.currentPlayer!.id,
-            recipientId,
-            Math.abs(transferAmount),
-            `Pagamento per ${description}`
-          ));
-        }
-      }
-
-      // 3. Ricarica i dati
-      await this.loadGameData();
-
-      const alert = await this.alertController.create({
-        header: 'Trasferimento Completato',
-        message: `${properties.length} proprietà trasferite con successo!`,
-        buttons: ['OK']
-      });
-      await alert.present();
-
-    } catch (error) {
-      console.error('Multi transfer error:', error);
-      const alert = await this.alertController.create({
-        header: 'Errore Trasferimento',
-        message: 'Errore durante il trasferimento. Alcune operazioni potrebbero non essere state completate.',
-        buttons: ['OK']
-      });
-      await alert.present();
-    } finally {
-      loading.dismiss();
-    }
-  }
-
-  // ============================================
-  // Funzioni di utilità e altre funzionalità esistenti
-  // ============================================
-  async showFullTransactionsList() {
-    const alert = await this.alertController.create({
-      header: 'Tutte le Transazioni',
-      message: this.buildTransactionsText(),
-      cssClass: 'transactions-alert',
-      buttons: [
-        {
-          text: 'Esporta',
-          handler: () => {
-            this.exportTransactions();
-          }
-        },
-        {
-          text: 'Chiudi',
-          role: 'cancel'
-        }
-      ]
-    });
-    await alert.present();
-  }
-
-  async showPropertiesOverview() {
-    if (!this.currentSession?.players) return;
-
-    let overviewText = '';
-    for (const player of this.currentSession.players) {
-      try {
-        const properties = await firstValueFrom(this.apiService.getPlayerProperties(player.id));
-        const propertiesList = properties || [];
-        overviewText += `\n${player.name} (${propertiesList.length} proprietà):\n`;
-
-        if (propertiesList.length === 0) {
-          overviewText += '  - Nessuna proprietà\n';
-        } else {
-          propertiesList.forEach(prop => {
-            let status = '';
-            if (prop.mortgaged) status += ' [IPOTECATA]';
-            if (prop.hasHotel) status += ' [HOTEL]';
-            else if (prop.houses > 0) status += ` [${prop.houses} CASE]`;
-
-            overviewText += `  - ${prop.propertyName}${status}\n`;
-          });
-        }
-      } catch (error) {
-        console.error(`Error loading properties for ${player.name}:`, error);
-        overviewText += `  - Errore nel caricamento\n`;
-      }
-    }
-
-    const alert = await this.alertController.create({
-      header: 'Riepilogo Proprietà',
-      message: overviewText,
-      cssClass: 'properties-overview-alert',
-      buttons: ['OK']
-    });
-    await alert.present();
-  }
-
-  async showGameStatistics() {
-    if (!this.currentSession?.players) return;
-
-    try {
-      const allTransactions = await firstValueFrom(this.apiService.getTransactions(this.sessionCode));
-      const transactionsList = allTransactions || [];
-
-      let stats = 'STATISTICHE PARTITA\n\n';
-
-      // Player statistics
-      this.currentSession.players.forEach(player => {
-        const playerTransactions = transactionsList.filter(t =>
-          t.fromPlayerName === player.name || t.toPlayerName === player.name
-        );
-
-        const received = transactionsList
-          .filter(t => t.toPlayerName === player.name)
-          .reduce((sum, t) => sum + t.amount, 0);
-
-        const paid = transactionsList
-          .filter(t => t.fromPlayerName === player.name)
-          .reduce((sum, t) => sum + t.amount, 0);
-
-        stats += `${player.name}:\n`;
-        stats += `  Saldo: ${this.gameService.formatCurrency(player.balance)}\n`;
-        stats += `  Proprietà: ${player.propertiesCount}\n`;
-        stats += `  Ricevuto: ${this.gameService.formatCurrency(received)}\n`;
-        stats += `  Pagato: ${this.gameService.formatCurrency(paid)}\n`;
-        stats += `  Transazioni: ${playerTransactions.length}\n\n`;
-      });
-
-      // Game statistics
-      const totalTransactions = transactionsList.length;
-      const totalMoney = transactionsList.reduce((sum, t) => sum + t.amount, 0);
-
-      stats += `TOTALI:\n`;
-      stats += `Transazioni: ${totalTransactions}\n`;
-      stats += `Volume scambi: ${this.gameService.formatCurrency(totalMoney)}\n`;
-
-      const alert = await this.alertController.create({
-        header: 'Statistiche Partita',
-        message: stats,
-        cssClass: 'stats-alert',
-        buttons: ['OK']
-      });
-      await alert.present();
-    } catch (error) {
-      console.error('Error calculating statistics:', error);
-      const alert = await this.alertController.create({
-        header: 'Errore',
-        message: 'Errore nel calcolo delle statistiche',
-        buttons: ['OK']
-      });
-      await alert.present();
-    }
-  }
-
-  async showRentCalculator() {
-    const alert = await this.alertController.create({
-      header: 'Calcolatore Affitto',
-      inputs: [
-        {
-          name: 'propertyName',
-          type: 'text',
-          placeholder: 'Nome proprietà'
-        },
-        {
-          name: 'diceRoll',
-          type: 'number',
-          placeholder: 'Risultato dadi (per società)',
-          value: 7,
-          min: 2,
-          max: 12
-        }
-      ],
-      buttons: [
-        {
-          text: 'Annulla',
-          role: 'cancel'
-        },
-        {
-          text: 'Calcola',
-          handler: async (data) => {
-            if (data.propertyName) {
-              try {
-                const properties = await firstValueFrom(this.apiService.getAllProperties());
-                const propertiesList = properties || [];
-                const property = propertiesList.find(p =>
-                  p.name.toLowerCase().includes(data.propertyName.toLowerCase())
-                );
-
-                if (property) {
-                  const rent = await firstValueFrom(this.apiService.calculateRent(property.id, data.diceRoll || 7));
-                  const rentAlert = await this.alertController.create({
-                    header: 'Affitto Calcolato',
-                    message: `${property.name}\nAffitto: ${this.gameService.formatCurrency(rent || 0)}`,
-                    buttons: ['OK']
-                  });
-                  await rentAlert.present();
-                } else {
-                  const errorAlert = await this.alertController.create({
-                    header: 'Errore',
-                    message: 'Proprietà non trovata',
-                    buttons: ['OK']
-                  });
-                  await errorAlert.present();
-                }
-              } catch (error) {
-                console.error('Error calculating rent:', error);
-              }
+      const propAlert = await this.alertController.create({
+         header: `Proprietà di ${owner.name}`,
+         message: 'Seleziona la proprietà per pagare l\'affitto',
+         inputs: properties.map((p, index) => {
+            // Creiamo una lista di opzioni per il radio senza opzione vuota iniziale
+            const rentInfo = this.calculateDisplayRent(p);
+            return {
+               name: 'property',               // stesso name per tutte
+               type: 'radio',
+               label: `${p.propertyName} - ${this.gameService.formatCurrency(rentInfo.rent)} ${rentInfo.description}`,
+               value: p.propertyId
             }
-          }
-        }
-      ]
-    });
-    await alert.present();
-  }
+         }),
+         buttons: [
+            {
+               text: 'Indietro',
+               role: 'cancel',
+               handler: () => this.showRentPaymentModal()
+            },
+            {
+               text: 'Avanti',
+               handler: async (propertyId: number | string) => {
 
-  async showWealthManagementModal() {
-    console.log('=== OPENING WEALTH MANAGEMENT MODAL ===');
-    const modal = await this.modalController.create({
-      component: WealthManagementModalComponent,
-      cssClass: 'wealth-modal'
-    });
+                  // ── Trova la proprietà selezionata
+                  const selectedProp = properties.find(
+                     p => p.propertyId === Number(propertyId)
+                  );
 
-    await modal.present();
+                  if (!selectedProp) {
+                     await this.presentError('Proprietà non trovata.');
+                     return false;            // mantiene l’alert aperto
+                  }
 
-    const { data } = await modal.onDidDismiss();
-    if (data?.refresh) {
-      console.log('Refreshing game data after wealth management modal');
-      this.loadGameData();
-    }
-  }
+                  // === 2. SE È UTILITY, CHIEDI IL DADO ======================
+                  if (selectedProp?.propertyType === 'UTILITY') {
+                     const dicePrompt = await this.alertController.create({
+                        header: 'Tiro di dado',
+                        inputs: [{
+                           name: 'diceRoll',
+                           type: 'number',
+                           value: 7,
+                           min: 2,
+                           max: 12,
+                           placeholder: 'Risultato (2‑12)'
+                        }],
+                        buttons: [
+                           { text: 'Annulla', role: 'cancel' },
+                           {
+                              text: 'Paga',
+                              handler: async ({ diceRoll }) => {
+                                 const roll = Number(diceRoll);
+                                 if (!Number.isInteger(roll) || roll < 2 || roll > 12) {
+                                    await this.presentError('Inserisci un valore tra 2 e 12.');
+                                    return false;
+                                 }
+                                 await this.executeRentPayment(selectedProp, roll);
+                                 return true;
+                              }
+                           }
+                        ]
+                     });
+                     await dicePrompt.present();
+                  } else {
+                     // === 3. PROPRIETÀ NORMALI: NIENTE DADO =================
+                     await this.executeRentPayment(selectedProp, 0);
+                  }
 
-  // ============================================
-  // AGGIORNATO: Menu con nuove azioni
-  // ============================================
-  async showMenu() {
-    const actionSheet = await this.actionSheetController.create({
-      header: 'Menu',
-      buttons: [
-        {
-          text: 'Paga Affitto',
-          icon: 'home',
-          handler: () => {
-            this.showRentPaymentModal();
-          }
-        },
-        {
-          text: 'Trasferimento Multiplo Proprietà',
-          icon: 'git-branch',
-          handler: () => {
-            this.showMultiPropertyTransferModal();
-          }
-        },
-        {
-          text: 'Gestione Patrimonio',
-          icon: 'analytics',
-          handler: () => {
-            this.showWealthManagementModal();
-          }
-        },
-        {
-          text: 'Visualizza Tutte le Transazioni',
-          icon: 'list',
-          handler: () => {
-            this.showFullTransactionsList();
-          }
-        },
-        {
-          text: 'Riepilogo Proprietà',
-          icon: 'business',
-          handler: () => {
-            this.showPropertiesOverview();
-          }
-        },
-        {
-          text: 'Statistiche Partita',
-          icon: 'trending-up',
-          handler: () => {
-            this.showGameStatistics();
-          }
-        },
-        {
-          text: 'Calcolatore Affitto',
-          icon: 'calculator',
-          handler: () => {
-            this.showRentCalculator();
-          }
-        },
-        {
-          text: 'Annulla',
-          icon: 'close',
-          role: 'cancel'
-        }
-      ]
-    });
-    await actionSheet.present();
-  }
+                  return true;
+               }
+            }
+         ]
+      });
 
-  // ============================================
-  // Utility functions
-  // ============================================
-  private buildTransactionsText(): string {
-    let text = '';
-    this.recentTransactions.forEach((transaction, index) => {
-      text += `${index + 1}. ${transaction.description}\n`;
-      text += `   ${transaction.fromPlayerName} → ${transaction.toPlayerName}\n`;
-      text += `   ${this.gameService.formatCurrency(transaction.amount)}\n`;
-      text += `   ${this.formatTime(transaction.timestamp)}\n\n`;
-    });
-    return text || 'Nessuna transazione';
-  }
+      await propAlert.present();
+   }
 
-  private exportTransactions() {
-    const csvContent = this.buildCSVContent();
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    const url = URL.createObjectURL(blob);
-    link.setAttribute('href', url);
-    link.setAttribute('download', `monopoly-transactions-${this.sessionCode}.csv`);
-    link.style.visibility = 'hidden';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  }
+   /** Alert di servizio per evitare duplicazione di codice */
+   // Removed duplicate presentError implementation
 
-  private buildCSVContent(): string {
-    let csv = 'Timestamp,From,To,Amount,Description,Type\n';
-    this.recentTransactions.forEach(t => {
-      csv += `${t.timestamp},${t.fromPlayerName},${t.toPlayerName},${t.amount},"${t.description}",${t.type}\n`;
-    });
-    return csv;
-  }
+   // Utility per calcolare affitto da mostrare
+   private calculateDisplayRent(property: PropertyOwnership): { rent: number, description: string } {
+      // Se è ipotecata, affitto = 0
+      if (property.mortgaged) {
+         return {
+            rent: 0,
+            description: '(IPOTECATA - Affitto non dovuto)'
+         };
+      }
 
-  getTransactionClass(transaction: Transaction): string {
-    return `transaction-${transaction.type.toLowerCase().replace('_', '-')}`;
-  }
+      // Per le società, calcola con dadi 7 come esempio
+      if (property.propertyType === 'UTILITY') {
+         return {
+            rent: 7 * 4,
+            description: '(da moltiplicare per il tiro di dado)'
+         };
+      }
 
-  getAmountClass(transaction: Transaction): string {
-    if (transaction.type === 'BANK_TO_PLAYER') return 'amount-positive';
-    if (transaction.type === 'PLAYER_TO_BANK') return 'amount-negative';
-    return 'amount-neutral';
-  }
+      // Per le stazioni
+      if (property.propertyType === 'RAILROAD') {
+         return {
+            rent: property.currentRent,
+            description: '(stazione)'
+         };
+      }
 
-  formatTime(timestamp: string): string {
-    return new Date(timestamp).toLocaleTimeString('it-IT', {
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  }
+      // Per le strade
+      let description = '';
+      if (property.hasHotel) {
+         description = '(Hotel)';
+      } else if (property.houses > 0) {
+         description = `(${property.houses} case)`;
+      } else {
+         description = '(base)';
+      }
 
-  // Metodi di supporto per il design moderno
-  getPlayerColorHex(color: string): string {
-    const colorMap: { [key: string]: string } = {
-      'RED': '#e53e3e',
-      'BLUE': '#3182ce',
-      'GREEN': '#38a169',
-      'YELLOW': '#d69e2e',
-      'PURPLE': '#805ad5',
-      'ORANGE': '#ff8c00',
-      'BLACK': '#2d3748',
-      'WHITE': '#f7fafc'
-    };
-    return colorMap[color] || '#ccc';
-  }
+      return {
+         rent: property.currentRent,
+         description
+      };
+   }
 
-  darkenColor(hex: string, percent: number): string {
-    const num = parseInt(hex.replace("#", ""), 16);
-    const amt = Math.round(2.55 * percent);
-    const R = (num >> 16) - amt;
-    const G = (num >> 8 & 0x00FF) - amt;
-    const B = (num & 0x0000FF) - amt;
-    return "#" + (0x1000000 + (R < 255 ? R < 1 ? 0 : R : 255) * 0x10000 +
-      (G < 255 ? G < 1 ? 0 : G : 255) * 0x100 +
-      (B < 255 ? B < 1 ? 0 : B : 255)).toString(16).slice(1);
-  }
+   private async executeRentPayment(property: PropertyOwnership, diceRoll: number) {
+      console.log('=== EXECUTING RENT PAYMENT ===');
+      console.log('Property:', property.propertyName, 'ID:', property.propertyId);
+      console.log('Dice roll:', diceRoll);
+      console.log('Current player:', this.currentPlayer?.id);
 
-  getTransactionBg(transaction: Transaction): string {
-    const bgMap: { [key: string]: string } = {
-      'PLAYER_TO_PLAYER': '#ebf8ff',
-      'PLAYER_TO_BANK': '#fed7d7',
-      'BANK_TO_PLAYER': '#f0fff4',
-      'PROPERTY_PURCHASE': '#f7fafc',
-      'RENT_PAYMENT': '#fef5e7',
-      'TAX_PAYMENT': '#fed7d7',
-      'SALARY': '#f0fff4'
-    };
-    return bgMap[transaction.type] || '#f7fafc';
-  }
+      if (!this.currentPlayer) {
+         const alert = await this.alertController.create({
+            header: 'Errore',
+            message: 'Giocatore corrente non identificato',
+            buttons: ['OK']
+         });
+         await alert.present();
+         return;
+      }
 
-  getTransactionIcon(transaction: Transaction): string {
-    const iconMap: { [key: string]: string } = {
-      'PLAYER_TO_PLAYER': 'swap-horizontal',
-      'PLAYER_TO_BANK': 'arrow-up',
-      'BANK_TO_PLAYER': 'arrow-down',
-      'PROPERTY_PURCHASE': 'business',
-      'RENT_PAYMENT': 'home',
-      'TAX_PAYMENT': 'receipt',
-      'SALARY': 'cash',
-      'BUILDING_SALE': 'construct',
-      'PROPERTY_TRANSFER': 'git-branch',
-      'LIQUIDATION': 'warning',
-      'AUCTION_PURCHASE': 'hammer'
-    };
-    return iconMap[transaction.type] || 'document';
-  }
+      let loading: any = null;
 
-  getTransactionColor(transaction: Transaction): string {
-    const colorMap: { [key: string]: string } = {
-      'PLAYER_TO_PLAYER': '#3182ce',
-      'PLAYER_TO_BANK': '#e53e3e',
-      'BANK_TO_PLAYER': '#38a169',
-      'PROPERTY_PURCHASE': '#805ad5',
-      'RENT_PAYMENT': '#dc2626',
-      'TAX_PAYMENT': '#e53e3e',
-      'SALARY': '#38a169',
-      'BUILDING_SALE': '#f59e0b',
-      'PROPERTY_TRANSFER': '#805ad5',
-      'LIQUIDATION': '#dc2626',
-      'AUCTION_PURCHASE': '#f59e0b'
-    };
-    return colorMap[transaction.type] || '#4a5568';
-  }
+      try {
+         loading = await this.loadingController.create({
+            message: 'Pagamento affitto...'
+         });
+         await loading.present();
 
-  getAmountColor(transaction: Transaction): string {
-    if (transaction.type === 'BANK_TO_PLAYER' || transaction.type === 'SALARY') {
-      return '#38a169'; // Verde per entrate
-    }
-    if (transaction.type === 'PLAYER_TO_BANK' || transaction.type === 'TAX_PAYMENT') {
-      return '#e53e3e'; // Rosso per uscite
-    }
-    return '#2d3748'; // Grigio scuro per trasferimenti
-  }
+         const transaction = await firstValueFrom(
+            this.apiService.payRent(property.propertyId, this.currentPlayer.id, diceRoll)
+         );
+
+         console.log('✅ Rent payment completed:', transaction);
+
+         // Chiudi loading PRIMA dell'alert
+         if (loading) {
+            await loading.dismiss();
+            loading = null;
+         }
+
+         // Ricarica i dati del giocatore
+         await this.loadCurrentPlayer();
+
+         const alert = await this.alertController.create({
+            header: '✅ Affitto Pagato',
+            message: `Hai pagato ${this.gameService.formatCurrency(transaction.amount)} di affitto per "${property.propertyName}".`,
+            buttons: ['OK']
+         });
+         await alert.present();
+
+      } catch (error) {
+         console.error('❌ Rent payment error:', error);
+
+         // Chiudi loading PRIMA dell'alert di errore
+         if (loading) {
+            await loading.dismiss();
+            loading = null;
+         }
+
+         let errorMessage = 'Errore nel pagamento dell\'affitto';
+         if (error && typeof error === 'object') {
+            if ((error as any).status === 400) {
+               errorMessage = (error as any).error?.message || 'Transazione non valida o fondi insufficienti';
+            } else if ((error as any).status === 404) {
+               errorMessage = 'Proprietà o giocatore non trovato';
+            }
+         }
+
+         const alert = await this.alertController.create({
+            header: '❌ Errore Pagamento',
+            message: errorMessage,
+            buttons: ['OK']
+         });
+         await alert.present();
+      } finally {
+         // Sicurezza: assicurati che loading sia sempre chiuso
+         if (loading) {
+            try {
+               await loading.dismiss();
+            } catch (e) {
+               console.warn('Error dismissing loading:', e);
+            }
+         }
+      }
+   }
+   async loadCurrentPlayer() {
+      return new Promise<void>((resolve) => {
+         this.gameService.getCurrentPlayer().subscribe((player: Player | null) => {
+            this.currentPlayer = player;
+            console.log('Current player loaded:', this.currentPlayer?.name);
+            resolve();
+         });
+      });
+   }
+   // ============================================
+   // Trasferimento denaro semplificato
+   // ============================================
+   async showTransferModal() {
+      if (!this.currentPlayer) {
+         const alert = await this.alertController.create({
+            header: 'Errore',
+            message: 'Giocatore non identificato',
+            buttons: ['OK']
+         });
+         await alert.present();
+         return;
+      }
+
+      if (!this.currentSession?.players?.length) {
+         const alert = await this.alertController.create({
+            header: 'Errore',
+            message: 'Nessun giocatore disponibile',
+            buttons: ['OK']
+         });
+         await alert.present();
+         return;
+      }
+
+      console.log('=== SHOWING SIMPLIFIED TRANSFER MODAL ===');
+      console.log('Current player (sender):', this.currentPlayer);
+
+      // Filteriamo gli altri giocatori (escluso quello corrente)
+      const availableRecipients = this.currentSession.players.filter(p => p.id !== this.currentPlayer!.id);
+
+      if (availableRecipients.length === 0) {
+         const alert = await this.alertController.create({
+            header: 'Errore',
+            message: 'Non ci sono altri giocatori a cui trasferire denaro',
+            buttons: ['OK']
+         });
+         await alert.present();
+         return;
+      }
+
+      // Mostra selezione destinatario
+      const actionSheet = await this.actionSheetController.create({
+         header: `${this.currentPlayer.name} trasferisce denaro a:`,
+         subHeader: `Saldo disponibile: ${this.gameService.formatCurrency(this.currentPlayer.balance)}`,
+         buttons: [
+            ...availableRecipients.map(player => ({
+               text: `${player.name} (${this.gameService.formatCurrency(player.balance)})`,
+               handler: () => {
+                  this.showTransferAmountModal(player);
+               }
+            })),
+            {
+               text: 'Annulla',
+               role: 'cancel'
+            }
+         ]
+      });
+      await actionSheet.present();
+   }
+
+   async showTransferAmountModal(toPlayer: Player) {
+      if (!this.currentPlayer) return;
+
+      const alert = await this.alertController.create({
+         header: 'Trasferimento Denaro',
+         message: `Da: ${this.currentPlayer.name}\nA: ${toPlayer.name}`,
+         inputs: [
+            {
+               name: 'amount',
+               type: 'number',
+               placeholder: 'Importo da trasferire',
+               min: 1,
+               max: this.currentPlayer.balance
+            },
+            {
+               name: 'description',
+               type: 'text',
+               placeholder: 'Descrizione (opzionale)',
+               value: `Trasferimento a ${toPlayer.name}`
+            }
+         ],
+         buttons: [
+            {
+               text: 'Annulla',
+               role: 'cancel'
+            },
+            {
+               text: 'Trasferisci',
+               handler: (data) => {
+                  if (data.amount && data.amount > 0) {
+                     this.performTransfer(this.currentPlayer!.id, toPlayer.id, data.amount, data.description || 'Trasferimento');
+                  }
+               }
+            }
+         ]
+      });
+      await alert.present();
+   }
+
+   async performTransfer(fromPlayerId: number, toPlayerId: number, amount: number, description: string) {
+      const loading = await this.loadingController.create({
+         message: 'Trasferimento in corso...'
+      });
+      await loading.present();
+
+      try {
+         console.log('=== PERFORMING TRANSFER ===');
+         console.log('From:', fromPlayerId, 'To:', toPlayerId, 'Amount:', amount);
+
+         await firstValueFrom(this.apiService.transferMoney(fromPlayerId, toPlayerId, amount, description));
+         console.log('Transfer completed successfully');
+      } catch (error) {
+         console.error('Transfer error:', error);
+         const alert = await this.alertController.create({
+            header: 'Errore',
+            message: 'Errore nel trasferimento. Verifica i fondi disponibili.',
+            buttons: ['OK']
+         });
+         await alert.present();
+      } finally {
+         loading.dismiss();
+      }
+   }
+
+   // ============================================
+   // Pagamenti banca semplificati
+   // ============================================
+   async showBankPaymentFromBankModal() {
+      if (!this.currentPlayer) {
+         const alert = await this.alertController.create({
+            header: 'Errore',
+            message: 'Giocatore non identificato',
+            buttons: ['OK']
+         });
+         await alert.present();
+         return;
+      }
+
+      const alert = await this.alertController.create({
+         header: 'Ricevi dalla Banca',
+         message: `Giocatore: ${this.currentPlayer.name}`,
+         inputs: [
+            {
+               name: 'amount',
+               type: 'number',
+               placeholder: 'Importo da ricevere',
+               min: 1
+            },
+            {
+               name: 'description',
+               type: 'text',
+               placeholder: 'Descrizione',
+               value: 'Pagamento dalla Banca'
+            }
+         ],
+         buttons: [
+            {
+               text: 'Annulla',
+               role: 'cancel'
+            },
+            {
+               text: 'Ricevi',
+               handler: (data) => {
+                  if (data.amount && data.amount > 0) {
+                     this.performBankPayment(this.currentPlayer!.id, data.amount, data.description, true);
+                  }
+               }
+            }
+         ]
+      });
+      await alert.present();
+   }
+
+   async showBankPaymentToBankModal() {
+      if (!this.currentPlayer) {
+         const alert = await this.alertController.create({
+            header: 'Errore',
+            message: 'Giocatore non identificato',
+            buttons: ['OK']
+         });
+         await alert.present();
+         return;
+      }
+
+      const alert = await this.alertController.create({
+         header: 'Paga alla Banca',
+         message: `Giocatore: ${this.currentPlayer.name}\nSaldo: ${this.gameService.formatCurrency(this.currentPlayer.balance)}`,
+         inputs: [
+            {
+               name: 'amount',
+               type: 'number',
+               placeholder: 'Importo da pagare',
+               min: 1,
+               max: this.currentPlayer.balance
+            },
+            {
+               name: 'description',
+               type: 'text',
+               placeholder: 'Descrizione',
+               value: 'Pagamento alla Banca'
+            }
+         ],
+         buttons: [
+            {
+               text: 'Annulla',
+               role: 'cancel'
+            },
+            {
+               text: 'Paga',
+               handler: (data) => {
+                  if (data.amount && data.amount > 0) {
+                     this.performBankPayment(this.currentPlayer!.id, data.amount, data.description, false);
+                  }
+               }
+            }
+         ]
+      });
+      await alert.present();
+   }
+
+   async performBankPayment(playerId: number, amount: number, description: string, isFromBank: boolean) {
+      const loading = await this.loadingController.create({
+         message: isFromBank ? 'Ricevendo dalla Banca...' : 'Pagando alla Banca...'
+      });
+      await loading.present();
+
+      try {
+         console.log('=== PERFORMING BANK PAYMENT ===');
+         console.log('Player:', playerId, 'Amount:', amount, 'From bank:', isFromBank);
+
+         if (isFromBank) {
+            await firstValueFrom(this.apiService.payFromBank(playerId, amount, description));
+         } else {
+            await firstValueFrom(this.apiService.payToBank(playerId, amount, description));
+         }
+         console.log('Bank payment completed successfully');
+      } catch (error) {
+         console.error('Bank payment error:', error);
+         const alert = await this.alertController.create({
+            header: 'Errore',
+            message: 'Errore nel pagamento. Verifica i fondi disponibili.',
+            buttons: ['OK']
+         });
+         await alert.present();
+      } finally {
+         loading.dismiss();
+      }
+   }
+
+   // ============================================
+   // AGGIORNATO: Modal proprietà con player preselezionato
+   // ============================================
+   async showPropertiesModal() {
+      console.log('=== OPENING PROPERTIES MODAL ===');
+      const modal = await this.modalController.create({
+         component: PropertiesModalComponent,
+         cssClass: 'properties-modal',
+         componentProps: {
+            currentPlayerOnly: true // Passa parametro per limitare alle azioni del giocatore corrente
+         }
+      });
+
+      await modal.present();
+
+      const { data } = await modal.onDidDismiss();
+      if (data?.refresh) {
+         console.log('Refreshing game data after properties modal');
+         this.loadGameData();
+      }
+   }
+
+
+   private async getCurrentSession(): Promise<GameSession | null> {
+      return new Promise((resolve) => {
+         this.gameService.getCurrentSession().subscribe(session => {
+            resolve(session);
+         });
+      });
+   }
+
+   /* ***************************************************************** */
+   /*  Helper: errore rapido                                            */
+   /* ***************************************************************** */
+   private async presentError(message: string) {
+      const alert = await this.alertController.create({
+         header: 'Errore',
+         message: message,
+         buttons: ['OK']
+      });
+      await alert.present();
+   }
+
+
+
+   // ============================================
+   // Funzioni di utilità e altre funzionalità esistenti
+   // ============================================
+   async showFullTransactionsList() {
+      const alert = await this.alertController.create({
+         header: 'Tutte le Transazioni',
+         message: this.buildTransactionsText(),
+         cssClass: 'transactions-alert',
+         buttons: [
+            {
+               text: 'Esporta',
+               handler: () => {
+                  this.exportTransactions();
+               }
+            },
+            {
+               text: 'Chiudi',
+               role: 'cancel'
+            }
+         ]
+      });
+      await alert.present();
+   }
+
+   async showPropertiesOverview() {
+      if (!this.currentSession?.players) return;
+
+      let overviewText = '';
+      for (const player of this.currentSession.players) {
+         try {
+            const properties = await firstValueFrom(this.apiService.getPlayerProperties(player.id));
+            const propertiesList = properties || [];
+            overviewText += `\n${player.name} (${propertiesList.length} proprietà):\n`;
+
+            if (propertiesList.length === 0) {
+               overviewText += '  - Nessuna proprietà\n';
+            } else {
+               propertiesList.forEach(prop => {
+                  let status = '';
+                  if (prop.mortgaged) status += ' [IPOTECATA]';
+                  if (prop.hasHotel) status += ' [HOTEL]';
+                  else if (prop.houses > 0) status += ` [${prop.houses} CASE]`;
+
+                  overviewText += `  - ${prop.propertyName}${status}\n`;
+               });
+            }
+         } catch (error) {
+            console.error(`Error loading properties for ${player.name}:`, error);
+            overviewText += `  - Errore nel caricamento\n`;
+         }
+      }
+
+      const alert = await this.alertController.create({
+         header: 'Riepilogo Proprietà',
+         message: overviewText,
+         cssClass: 'properties-overview-alert',
+         buttons: ['OK']
+      });
+      await alert.present();
+   }
+
+   async showGameStatistics() {
+      if (!this.currentSession?.players) return;
+
+      try {
+         const allTransactions = await firstValueFrom(this.apiService.getTransactions(this.sessionCode));
+         const transactionsList = allTransactions || [];
+
+         let stats = 'STATISTICHE PARTITA\n\n';
+
+         // Player statistics
+         this.currentSession.players.forEach(player => {
+            const playerTransactions = transactionsList.filter(t =>
+               t.fromPlayerName === player.name || t.toPlayerName === player.name
+            );
+
+            const received = transactionsList
+               .filter(t => t.toPlayerName === player.name)
+               .reduce((sum, t) => sum + t.amount, 0);
+
+            const paid = transactionsList
+               .filter(t => t.fromPlayerName === player.name)
+               .reduce((sum, t) => sum + t.amount, 0);
+
+            stats += `${player.name}:\n`;
+            stats += `  Saldo: ${this.gameService.formatCurrency(player.balance)}\n`;
+            stats += `  Proprietà: ${player.propertiesCount}\n`;
+            stats += `  Ricevuto: ${this.gameService.formatCurrency(received)}\n`;
+            stats += `  Pagato: ${this.gameService.formatCurrency(paid)}\n`;
+            stats += `  Transazioni: ${playerTransactions.length}\n\n`;
+         });
+
+         // Game statistics
+         const totalTransactions = transactionsList.length;
+         const totalMoney = transactionsList.reduce((sum, t) => sum + t.amount, 0);
+
+         stats += `TOTALI:\n`;
+         stats += `Transazioni: ${totalTransactions}\n`;
+         stats += `Volume scambi: ${this.gameService.formatCurrency(totalMoney)}\n`;
+
+         const alert = await this.alertController.create({
+            header: 'Statistiche Partita',
+            message: stats,
+            cssClass: 'stats-alert',
+            buttons: ['OK']
+         });
+         await alert.present();
+      } catch (error) {
+         console.error('Error calculating statistics:', error);
+         const alert = await this.alertController.create({
+            header: 'Errore',
+            message: 'Errore nel calcolo delle statistiche',
+            buttons: ['OK']
+         });
+         await alert.present();
+      }
+   }
+
+   async showRentCalculator() {
+      const alert = await this.alertController.create({
+         header: 'Calcolatore Affitto',
+         inputs: [
+            {
+               name: 'propertyName',
+               type: 'text',
+               placeholder: 'Nome proprietà'
+            },
+            {
+               name: 'diceRoll',
+               type: 'number',
+               placeholder: 'Risultato dadi (per società)',
+               value: 7,
+               min: 2,
+               max: 12
+            }
+         ],
+         buttons: [
+            {
+               text: 'Annulla',
+               role: 'cancel'
+            },
+            {
+               text: 'Calcola',
+               handler: async (data) => {
+                  if (data.propertyName) {
+                     try {
+                        const properties = await firstValueFrom(this.apiService.getAllProperties());
+                        const propertiesList = properties || [];
+                        const property = propertiesList.find(p =>
+                           p.name.toLowerCase().includes(data.propertyName.toLowerCase())
+                        );
+
+                        if (property) {
+                           const rent = await firstValueFrom(this.apiService.calculateRent(property.id, data.diceRoll || 7));
+                           const rentAlert = await this.alertController.create({
+                              header: 'Affitto Calcolato',
+                              message: `${property.name}\nAffitto: ${this.gameService.formatCurrency(rent || 0)}`,
+                              buttons: ['OK']
+                           });
+                           await rentAlert.present();
+                        } else {
+                           const errorAlert = await this.alertController.create({
+                              header: 'Errore',
+                              message: 'Proprietà non trovata',
+                              buttons: ['OK']
+                           });
+                           await errorAlert.present();
+                        }
+                     } catch (error) {
+                        console.error('Error calculating rent:', error);
+                     }
+                  }
+               }
+            }
+         ]
+      });
+      await alert.present();
+   }
+
+   async showWealthManagementModal() {
+      console.log('=== OPENING WEALTH MANAGEMENT MODAL ===');
+      const modal = await this.modalController.create({
+         component: WealthManagementModalComponent,
+         cssClass: 'wealth-modal'
+      });
+
+      await modal.present();
+
+      const { data } = await modal.onDidDismiss();
+      if (data?.refresh) {
+         console.log('Refreshing game data after wealth management modal');
+         this.loadGameData();
+      }
+   }
+
+   // ============================================
+   // AGGIORNATO: Menu con nuove azioni
+   // ============================================
+   async showMenu() {
+      const actionSheet = await this.actionSheetController.create({
+         header: 'Menu',
+         buttons: [
+            {
+               text: 'Paga Affitto',
+               icon: 'home',
+               handler: () => {
+                  this.showRentPaymentModal();
+               }
+            },
+            {
+               text: 'Trasferimento Multiplo Proprietà',
+               icon: 'git-branch',
+               handler: () => {
+                  this.showTradeModal();
+               }
+            },
+            {
+               text: 'Gestione Patrimonio',
+               icon: 'analytics',
+               handler: () => {
+                  this.showWealthManagementModal();
+               }
+            },
+            {
+               text: 'Visualizza Tutte le Transazioni',
+               icon: 'list',
+               handler: () => {
+                  this.showFullTransactionsList();
+               }
+            },
+            {
+               text: 'Riepilogo Proprietà',
+               icon: 'business',
+               handler: () => {
+                  this.showPropertiesOverview();
+               }
+            },
+            {
+               text: 'Statistiche Partita',
+               icon: 'trending-up',
+               handler: () => {
+                  this.showGameStatistics();
+               }
+            },
+            {
+               text: 'Calcolatore Affitto',
+               icon: 'calculator',
+               handler: () => {
+                  this.showRentCalculator();
+               }
+            },
+            {
+               text: 'Annulla',
+               icon: 'close',
+               role: 'cancel'
+            }
+         ]
+      });
+      await actionSheet.present();
+   }
+
+   // ============================================
+   // Utility functions
+   // ============================================
+   private buildTransactionsText(): string {
+      let text = '';
+      this.recentTransactions.forEach((transaction, index) => {
+         text += `${index + 1}. ${transaction.description}\n`;
+         text += `   ${transaction.fromPlayerName} → ${transaction.toPlayerName}\n`;
+         text += `   ${this.gameService.formatCurrency(transaction.amount)}\n`;
+         text += `   ${this.formatTime(transaction.timestamp)}\n\n`;
+      });
+      return text || 'Nessuna transazione';
+   }
+
+   private exportTransactions() {
+      const csvContent = this.buildCSVContent();
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      const url = URL.createObjectURL(blob);
+      link.setAttribute('href', url);
+      link.setAttribute('download', `monopoly-transactions-${this.sessionCode}.csv`);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+   }
+
+   private buildCSVContent(): string {
+      let csv = 'Timestamp,From,To,Amount,Description,Type\n';
+      this.recentTransactions.forEach(t => {
+         csv += `${t.timestamp},${t.fromPlayerName},${t.toPlayerName},${t.amount},"${t.description}",${t.type}\n`;
+      });
+      return csv;
+   }
+
+   getTransactionClass(transaction: Transaction): string {
+      return `transaction-${transaction.type.toLowerCase().replace('_', '-')}`;
+   }
+
+   getAmountClass(transaction: Transaction): string {
+      if (transaction.type === 'BANK_TO_PLAYER') return 'amount-positive';
+      if (transaction.type === 'PLAYER_TO_BANK') return 'amount-negative';
+      return 'amount-neutral';
+   }
+
+   formatTime(timestamp: string): string {
+      return new Date(timestamp).toLocaleTimeString('it-IT', {
+         hour: '2-digit',
+         minute: '2-digit'
+      });
+   }
+
+   // Metodi di supporto per il design moderno
+   getPlayerColorHex(color: string): string {
+      const colorMap: { [key: string]: string } = {
+         'RED': '#e53e3e',
+         'BLUE': '#3182ce',
+         'GREEN': '#38a169',
+         'YELLOW': '#d69e2e',
+         'PURPLE': '#805ad5',
+         'ORANGE': '#ff8c00',
+         'BLACK': '#2d3748',
+         'WHITE': '#f7fafc'
+      };
+      return colorMap[color] || '#ccc';
+   }
+
+   darkenColor(hex: string, percent: number): string {
+      const num = parseInt(hex.replace("#", ""), 16);
+      const amt = Math.round(2.55 * percent);
+      const R = (num >> 16) - amt;
+      const G = (num >> 8 & 0x00FF) - amt;
+      const B = (num & 0x0000FF) - amt;
+      return "#" + (0x1000000 + (R < 255 ? R < 1 ? 0 : R : 255) * 0x10000 +
+         (G < 255 ? G < 1 ? 0 : G : 255) * 0x100 +
+         (B < 255 ? B < 1 ? 0 : B : 255)).toString(16).slice(1);
+   }
+
+   getTransactionBg(transaction: Transaction): string {
+      const bgMap: { [key: string]: string } = {
+         'PLAYER_TO_PLAYER': '#ebf8ff',
+         'PLAYER_TO_BANK': '#fed7d7',
+         'BANK_TO_PLAYER': '#f0fff4',
+         'PROPERTY_PURCHASE': '#f7fafc',
+         'RENT_PAYMENT': '#fef5e7',
+         'TAX_PAYMENT': '#fed7d7',
+         'SALARY': '#f0fff4'
+      };
+      return bgMap[transaction.type] || '#f7fafc';
+   }
+
+   getTransactionIcon(transaction: Transaction): string {
+      const iconMap: { [key: string]: string } = {
+         'PLAYER_TO_PLAYER': 'swap-horizontal',
+         'PLAYER_TO_BANK': 'arrow-up',
+         'BANK_TO_PLAYER': 'arrow-down',
+         'PROPERTY_PURCHASE': 'business',
+         'RENT_PAYMENT': 'home',
+         'TAX_PAYMENT': 'receipt',
+         'SALARY': 'cash',
+         'BUILDING_SALE': 'construct',
+         'PROPERTY_TRANSFER': 'git-branch',
+         'LIQUIDATION': 'warning',
+         'AUCTION_PURCHASE': 'hammer'
+      };
+      return iconMap[transaction.type] || 'document';
+   }
+
+   getTransactionColor(transaction: Transaction): string {
+      const colorMap: { [key: string]: string } = {
+         'PLAYER_TO_PLAYER': '#3182ce',
+         'PLAYER_TO_BANK': '#e53e3e',
+         'BANK_TO_PLAYER': '#38a169',
+         'PROPERTY_PURCHASE': '#805ad5',
+         'RENT_PAYMENT': '#dc2626',
+         'TAX_PAYMENT': '#e53e3e',
+         'SALARY': '#38a169',
+         'BUILDING_SALE': '#f59e0b',
+         'PROPERTY_TRANSFER': '#805ad5',
+         'LIQUIDATION': '#dc2626',
+         'AUCTION_PURCHASE': '#f59e0b'
+      };
+      return colorMap[transaction.type] || '#4a5568';
+   }
+
+   getAmountColor(transaction: Transaction): string {
+      if (transaction.type === 'BANK_TO_PLAYER' || transaction.type === 'SALARY') {
+         return '#38a169'; // Verde per entrate
+      }
+      if (transaction.type === 'PLAYER_TO_BANK' || transaction.type === 'TAX_PAYMENT') {
+         return '#e53e3e'; // Rosso per uscite
+      }
+      return '#2d3748'; // Grigio scuro per trasferimenti
+   }
 }

@@ -1,0 +1,301 @@
+<!-- src/app/components/game/trade-modal/trade-modal.component.html -->
+
+<ion-header>
+  <ion-toolbar color="primary">
+    <ion-title>🤝 Scambio Negoziato</ion-title>
+    <ion-buttons slot="end">
+      <ion-button (click)="dismiss()">
+        <ion-icon name="close"></ion-icon>
+      </ion-button>
+    </ion-buttons>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content class="trade-modal-content">
+  <div class="trade-container">
+    
+    <!-- ===== SEZIONE 1: SELEZIONE DESTINATARIO ===== -->
+    <div class="trade-section">
+      <div class="section-header">
+        <ion-icon name="person-outline" class="section-icon"></ion-icon>
+        <h3>1. Seleziona Destinatario</h3>
+      </div>
+      
+      <div class="recipients-grid">
+        <div 
+          *ngFor="let player of otherPlayers" 
+          class="recipient-card"
+          [class.selected]="selectedRecipient?.id === player.id"
+          (click)="selectRecipient(player)">
+          
+          <div class="recipient-info">
+            <div class="recipient-name">{{player.name}}</div>
+            <div class="recipient-balance">{{gameService.formatCurrency(player.balance)}}</div>
+            <div *ngIf="player.host" class="host-badge">HOST</div>
+          </div>
+          
+          <ion-icon 
+            name="checkmark-circle" 
+            class="selection-icon"
+            [class.visible]="selectedRecipient?.id === player.id">
+          </ion-icon>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== SEZIONE 2: SELEZIONE PROPRIETÀ ===== -->
+    <div class="trade-section">
+      <div class="section-header">
+        <ion-icon name="home-outline" class="section-icon"></ion-icon>
+        <h3>2. Proprietà da Trasferire</h3>
+        <div class="selected-count" *ngIf="selectedProperties.length > 0">
+          {{selectedProperties.length}} selezionate
+        </div>
+      </div>
+
+      <!-- Barra di ricerca -->
+      <div class="search-container" *ngIf="availableProperties.length > 5">
+        <ion-searchbar
+          [(ngModel)]="searchTerm"
+          placeholder="Cerca proprietà..."
+          debounce="300"
+          class="custom-searchbar">
+        </ion-searchbar>
+      </div>
+
+      <!-- Lista proprietà -->
+      <div class="properties-list">
+        <div 
+          *ngFor="let property of filteredProperties" 
+          class="property-card"
+          [class.selected]="isPropertySelected(property)"
+          [class.mortgaged]="property.mortgaged"
+          (click)="toggleProperty(property)">
+          
+          <div class="property-main">
+            <div class="property-name">
+              {{property.propertyName}}
+              <span *ngIf="property.mortgaged" class="mortgaged-badge">IPOTECATA</span>
+            </div>
+            <div class="property-price">{{gameService.formatCurrency(property.propertyPrice)}}</div>
+          </div>
+          
+          <div class="property-details" *ngIf="property.houses > 0 || property.hasHotel">
+            <span *ngIf="property.hasHotel" class="building-info hotel">🏨 Albergo</span>
+            <span *ngIf="property.houses > 0 && !property.hasHotel" class="building-info houses">
+              🏠 {{property.houses}} case
+            </span>
+            <div class="building-warning">
+              ⚠️ Gli edifici saranno venduti automaticamente
+            </div>
+          </div>
+          
+          <ion-checkbox
+            [checked]="isPropertySelected(property)"
+            class="property-checkbox">
+          </ion-checkbox>
+        </div>
+      </div>
+
+      <!-- Riassunto selezione -->
+      <div class="selection-summary" *ngIf="selectedProperties.length > 0">
+        <div class="summary-row">
+          <span>Proprietà selezionate:</span>
+          <strong>{{selectedProperties.length}}</strong>
+        </div>
+        <div class="summary-row">
+          <span>Valore totale:</span>
+          <strong>{{gameService.formatCurrency(totalPropertiesValue)}}</strong>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== SEZIONE 3: COMPENSO MONETARIO ===== -->
+    <div class="trade-section">
+      <div class="section-header">
+        <ion-icon name="cash-outline" class="section-icon"></ion-icon>
+        <h3>3. Compenso Monetario</h3>
+      </div>
+
+      <!-- Selezione tipo compenso -->
+      <ion-radio-group [(ngModel)]="compensationType" class="compensation-type">
+        <ion-item lines="none" class="compensation-option">
+          <ion-radio slot="start" value="none">
+          <ion-label>
+            <h3>Nessun compenso</h3>
+            <p>Solo scambio di proprietà</p>
+          </ion-label>
+          </ion-radio>
+        </ion-item>
+
+        <ion-item lines="none" class="compensation-option">
+          <ion-radio slot="start" value="receive">
+          <ion-label>
+            <h3>Ricevo denaro</h3>
+            <p>Il destinatario mi paga</p>
+          </ion-label>
+          </ion-radio>
+        </ion-item>
+
+        <ion-item lines="none" class="compensation-option">
+          <ion-radio slot="start" value="pay">
+          <ion-label>
+            <h3>Pago denaro</h3>
+            <p>Io pago il destinatario</p>
+          </ion-label>
+          </ion-radio>
+        </ion-item>
+      </ion-radio-group>
+
+      <!-- Input importo -->
+      <div class="amount-input" *ngIf="compensationType !== 'none'">
+        <ion-item lines="none" class="amount-item">
+          <ion-label position="stacked">
+            Importo (€)
+            <span *ngIf="compensationType === 'receive'" class="amount-label receive">che riceverai</span>
+            <span *ngIf="compensationType === 'pay'" class="amount-label pay">che pagherai</span>
+          </ion-label>
+          <ion-input
+            type="number"
+            [(ngModel)]="compensationAmount"
+            min="0"
+            placeholder="0"
+            class="amount-input-field">
+          </ion-input>
+        </ion-item>
+
+        <!-- Verifica fondi -->
+        <div class="funds-check" *ngIf="compensationAmount > 0">
+          <div 
+            *ngIf="compensationType === 'pay'" 
+            class="funds-info"
+            [class.insufficient]="currentPlayer.balance < compensationAmount">
+            <ion-icon name="wallet-outline"></ion-icon>
+            <span>Il tuo saldo: {{gameService.formatCurrency(currentPlayer.balance)}}</span>
+            <span *ngIf="currentPlayer.balance < compensationAmount" class="warning">
+              ⚠️ Fondi insufficienti
+            </span>
+          </div>
+          
+          <div 
+            *ngIf="compensationType === 'receive' && selectedRecipient" 
+            class="funds-info"
+            [class.insufficient]="selectedRecipient.balance < compensationAmount">
+            <ion-icon name="wallet-outline"></ion-icon>
+            <span>Saldo {{selectedRecipient.name}}: {{gameService.formatCurrency(selectedRecipient.balance)}}</span>
+            <span *ngIf="selectedRecipient.balance < compensationAmount" class="warning">
+              ⚠️ Fondi insufficienti
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== SEZIONE 4: DESCRIZIONE ===== -->
+    <div class="trade-section">
+      <div class="section-header">
+        <ion-icon name="document-text-outline" class="section-icon"></ion-icon>
+        <h3>4. Descrizione (Opzionale)</h3>
+      </div>
+
+      <ion-item lines="none" class="description-item">
+        <ion-textarea
+          [(ngModel)]="description"
+          placeholder="Aggiungi una descrizione dello scambio..."
+          rows="3"
+          maxlength="200"
+          class="description-textarea">
+        </ion-textarea>
+      </ion-item>
+      <div class="char-count">{{description.length}}/200</div>
+    </div>
+
+    <!-- ===== RIASSUNTO FINALE ===== -->
+    <div class="trade-section final-summary" *ngIf="selectedRecipient && selectedProperties.length > 0">
+      <div class="section-header">
+        <ion-icon name="document-outline" class="section-icon"></ion-icon>
+        <h3>Riassunto Scambio</h3>
+      </div>
+
+      <div class="summary-card">
+        <div class="summary-item">
+          <span class="label">Destinatario:</span>
+          <span class="value">{{selectedRecipient.name}}</span>
+        </div>
+        
+        <div class="summary-item">
+          <span class="label">Proprietà:</span>
+          <span class="value">{{selectedProperties.length}} ({{gameService.formatCurrency(totalPropertiesValue)}})</span>
+        </div>
+        
+        <div class="summary-item" *ngIf="finalCompensation !== 0">
+          <span class="label">Compenso:</span>
+          <span class="value" [class.positive]="finalCompensation > 0" [class.negative]="finalCompensation < 0">
+            <span *ngIf="finalCompensation > 0">+{{gameService.formatCurrency(finalCompensation)}}</span>
+            <span *ngIf="finalCompensation < 0">{{gameService.formatCurrency(finalCompensation)}}</span>
+          </span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+   <div class="footer-actions">
+      <ion-button 
+        fill="clear" 
+        color="medium"
+        (click)="resetSelections()"
+        [disabled]="!selectedRecipient && selectedProperties.length === 0">
+        <ion-icon name="refresh-outline" slot="start"></ion-icon>
+        Reset
+      </ion-button>
+      <ion-button 
+      fill="clear" 
+        color="success"
+        [disabled]="!isTradeValid"
+        (click)="confirmTrade()">
+        <ion-icon name="checkmark-outline" slot="start"></ion-icon>
+        Conferma Scambio
+      </ion-button>
+
+      <ion-button 
+        fill="clear" 
+        color="medium"
+        (click)="dismiss()">
+        Annulla
+      </ion-button>
+
+      
+    </div>
+</ion-content>
+
+<!-- ===== FOOTER CON AZIONI ===== -->
+<ion-footer class="trade-footer">
+  <ion-toolbar>
+    <!-- <div class="footer-actions">
+      <ion-button 
+        fill="clear" 
+        color="medium"
+        (click)="resetSelections()"
+        [disabled]="!selectedRecipient && selectedProperties.length === 0">
+        <ion-icon name="refresh-outline" slot="start"></ion-icon>
+        Reset
+      </ion-button>
+
+      <ion-button 
+        fill="clear" 
+        color="medium"
+        (click)="dismiss()">
+        Annulla
+      </ion-button>
+
+      <ion-button 
+        color="success"
+        [disabled]="!isTradeValid"
+        (click)="confirmTrade()">
+        <ion-icon name="checkmark-outline" slot="start"></ion-icon>
+        Conferma Scambio
+      </ion-button>
+    </div> -->
+  </ion-toolbar>
+</ion-footer>

@@ -6,8 +6,8 @@ import { IonicModule } from '@ionic/angular';
 import { GamePageComponent } from './game-page.component';
 import { GamePageRoutingModule } from './game-routing.module';
 import { PropertiesModalComponent } from '../../properties/properties-modal/properties-modal.component';
-import { AuctionModalComponent } from './auction-modal/auction-modal.component';
 import { WealthManagementModalComponent } from './wealth-management-modal/wealth-management-modal.component';
+import { TradeModalComponent } from './trade-modal/trade-modal.component';
 
 @NgModule({
   imports: [
@@ -16,8 +16,8 @@ import { WealthManagementModalComponent } from './wealth-management-modal/wealth
     IonicModule,
     GamePageRoutingModule,
     PropertiesModalComponent,
-    AuctionModalComponent,
-    WealthManagementModalComponent
+    WealthManagementModalComponent,
+    TradeModalComponent 
   ],
   declarations: [GamePageComponent]
 })

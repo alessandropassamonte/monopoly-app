@@ -10,7 +10,6 @@ import { ApiService } from '../../../services/api.service';
 import { GameService } from '../../../services/game.service';
 import { Player } from '../../../models/player.model';
 import { CommonModule } from '@angular/common';
-import { AuctionModalComponent } from '@/components/game/game-page/auction-modal/auction-modal.component';
 
 @Component({
   selector: 'app-properties-modal',

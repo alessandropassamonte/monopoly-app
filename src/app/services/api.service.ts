@@ -495,13 +495,13 @@ export class ApiService {
   canTransferProperty(ownershipId: number): Observable<{
     canTransfer: boolean;
     hasBuildings: boolean;
-    isMortgaged: boolean;
+    mortgaged: boolean;
     reasons: string[];
   }> {
     return this.http.get<{
       canTransfer: boolean;
       hasBuildings: boolean;
-      isMortgaged: boolean;
+      mortgaged: boolean;
       reasons: string[];
     }>(`${this.baseUrl}/properties/ownership/${ownershipId}/transfer-info`);
   }

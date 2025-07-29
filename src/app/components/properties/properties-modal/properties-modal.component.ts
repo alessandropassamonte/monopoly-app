@@ -188,7 +188,7 @@ export class PropertiesModalComponent implements OnInit {
 
       console.log('Current player properties loaded:', this.currentPlayerProperties.length);
       this.currentPlayerProperties.forEach(p =>
-        console.log(`- ${p.propertyName}: ${p.houses} houses, hotel: ${p.hasHotel}, mortgaged: ${p.isMortgaged}`)
+        console.log(`- ${p.propertyName}: ${p.houses} houses, hotel: ${p.hasHotel}, mortgaged: ${p.mortgaged}`)
       );
 
       // AGGIUNTO: Applica filtro di ricerca
@@ -766,7 +766,7 @@ export class PropertiesModalComponent implements OnInit {
   private async showSimpleTransferModal(ownership: PropertyOwnership, availablePlayers: any[]) {
     const alert = await this.alertController.create({
       header: 'Trasferisci Proprietà',
-      message: `Trasferimento di: ${ownership.propertyName}\nValore: ${this.gameService.formatCurrency(ownership.propertyPrice)}${ownership.isMortgaged ? '\n⚠️ PROPRIETÀ IPOTECATA' : ''}`,
+      message: `Trasferimento di: ${ownership.propertyName}\nValore: ${this.gameService.formatCurrency(ownership.propertyPrice)}${ownership.mortgaged ? '\n⚠️ PROPRIETÀ IPOTECATA' : ''}`,
       inputs: [
         // Header destinatario - SENZA stili
         {
@@ -1041,7 +1041,7 @@ export class PropertiesModalComponent implements OnInit {
     message += `A: ${newOwner.name}\n`;
     message += `Valore proprietà: ${this.gameService.formatCurrency(ownership.propertyPrice)}\n`;
 
-    if (ownership.isMortgaged) {
+    if (ownership.mortgaged) {
       message += `\n⚠️ PROPRIETÀ IPOTECATA\n`;
       message += `${newOwner.name} dovrà pagare il 10% per mantenere l'ipoteca\n`;
     }
@@ -1264,7 +1264,7 @@ export class PropertiesModalComponent implements OnInit {
     message += `📥 A: ${newOwner.name}\n`;
     message += `💎 Valore proprietà: ${this.gameService.formatCurrency(ownership.propertyPrice)}\n`;
 
-    if (ownership.isMortgaged) {
+    if (ownership.mortgaged) {
       message += `⚠️ PROPRIETÀ IPOTECATA\n`;
       message += `💸 ${newOwner.name} dovrà pagare il 10% (${this.gameService.formatCurrency(ownership.propertyPrice * 0.1)}) per mantenere l'ipoteca\n`;
     }

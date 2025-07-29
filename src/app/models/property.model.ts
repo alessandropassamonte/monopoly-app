@@ -16,7 +16,7 @@ export interface Property {
     colorGroup: PropertyColor;
     houses: number;
     hasHotel: boolean;
-    isMortgaged: boolean;
+    mortgaged: boolean;
     currentRent: number;
     purchasedAt: string;
   }

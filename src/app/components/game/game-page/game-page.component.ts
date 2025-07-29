@@ -372,7 +372,7 @@ export class GamePageComponent implements OnInit, OnDestroy {
       const propertiesList = properties || [];
 
       // Filtra solo proprietà non ipotecate
-      const rentableProperties = propertiesList.filter(prop => !prop.isMortgaged);
+      const rentableProperties = propertiesList.filter(prop => !prop.mortgaged);
 
       loading.dismiss();
 
@@ -487,7 +487,7 @@ export class GamePageComponent implements OnInit, OnDestroy {
   // Utility per calcolare affitto da mostrare
   private calculateDisplayRent(property: PropertyOwnership): { rent: number, description: string } {
     // Se è ipotecata, affitto = 0
-    if (property.isMortgaged) {
+    if (property.mortgaged) {
       return {
         rent: 0,
         description: '(IPOTECATA - Affitto non dovuto)'
@@ -1027,7 +1027,7 @@ export class GamePageComponent implements OnInit, OnDestroy {
     const inputs = properties.map(p => ({
       name: 'selectedProps',
       type: 'checkbox' as const,
-      label: `${p.propertyName} (${this.gameService.formatCurrency(p.propertyPrice)})${p.isMortgaged ? ' [IPOTECATA]' : ''}`,
+      label: `${p.propertyName} (${this.gameService.formatCurrency(p.propertyPrice)})${p.mortgaged ? ' [IPOTECATA]' : ''}`,
       value: p.id
     }));
 
@@ -1686,7 +1686,7 @@ export class GamePageComponent implements OnInit, OnDestroy {
         } else {
           propertiesList.forEach(prop => {
             let status = '';
-            if (prop.isMortgaged) status += ' [IPOTECATA]';
+            if (prop.mortgaged) status += ' [IPOTECATA]';
             if (prop.hasHotel) status += ' [HOTEL]';
             else if (prop.houses > 0) status += ` [${prop.houses} CASE]`;
 

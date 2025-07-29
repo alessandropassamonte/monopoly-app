@@ -403,95 +403,86 @@ export class GamePageComponent implements OnInit, OnDestroy {
 
   // NUOVO: Modal con ricerca per proprietà affittabili
   private async showRentablePropertiesModal(owner: Player, properties: PropertyOwnership[]) {
-    console.log('=== SHOWING RENTABLE PROPERTIES MODAL ===');
     console.log('Owner:', owner.name);
-    console.log('Properties:', properties.length);
 
-    // Creiamo una lista di opzioni per il radio senza opzione vuota iniziale
-    const propertyInputs = properties.map((prop, index) => {
-      const rentInfo = this.calculateDisplayRent(prop);
-      return {
-        name: 'property', // CAMBIATO: usa un nome semplice senza conflitti
-        type: 'radio' as const,
-        label: `${prop.propertyName} - ${this.gameService.formatCurrency(rentInfo.rent)} ${rentInfo.description}`,
-        value: prop.propertyId.toString(),
-        checked: index === 0 // CAMBIATO: seleziona automaticamente la prima proprietà
-      };
-    });
-
-    const alert = await this.alertController.create({
+    const propAlert = await this.alertController.create({
       header: `Proprietà di ${owner.name}`,
       message: 'Seleziona la proprietà per pagare l\'affitto',
-      inputs: [
-        ...propertyInputs,
-        // Input per i dadi (solo per società) - SENZA separatore con stili
-        {
-          name: 'diceRoll',
-          type: 'number',
-          placeholder: 'Risultato dadi (2-12, default: 7)',
-          value: 7,
-          min: 2,
-          max: 12
+      inputs: properties.map((p, index) => {
+        // Creiamo una lista di opzioni per il radio senza opzione vuota iniziale
+        const rentInfo = this.calculateDisplayRent(p);
+        return {
+          name: 'property',               // stesso name per tutte
+          type: 'radio',
+          label: `${p.propertyName} - ${this.gameService.formatCurrency(rentInfo.rent)} ${rentInfo.description}`,
+          value: p.propertyId
         }
-      ],
+      }),
       buttons: [
         {
           text: 'Indietro',
-          handler: () => {
-            this.showRentPaymentModal(); // Torna alla selezione giocatore
-          }
+          role: 'cancel',
+          handler: () => this.showRentPaymentModal()
         },
         {
-          text: 'Paga Affitto',
-          handler: async (data) => {
-            console.log('=== FORM DATA RECEIVED ===');
-            console.log('Full data object:', data);
-            console.log('Property selected:', data.property);
-            console.log('Dice roll:', data.diceRoll);
+          text: 'Avanti',
+          handler: async (propertyId: number | string) => {
 
-            // CORREZIONE: Usa il nome corretto del campo
-            if (!data.property) {
-              console.log('❌ No property selected');
-              const errorAlert = await this.alertController.create({
-                header: 'Errore Selezione',
-                message: 'Errore nella selezione della proprietà. Riprova.',
-                buttons: ['OK']
-              });
-              await errorAlert.present();
-              return false;
-            }
-
-            // Trova la proprietà selezionata
-            const selectedPropertyId = data.property.toString();
-            const selectedProp = properties.find(p => p.propertyId.toString() === selectedPropertyId);
+            // ── Trova la proprietà selezionata
+            const selectedProp = properties.find(
+              p => p.propertyId === Number(propertyId)
+            );
 
             if (!selectedProp) {
-              console.error('❌ Property not found for ID:', selectedPropertyId);
-              console.log('Available properties:', properties.map(p => ({ id: p.propertyId, name: p.propertyName })));
-
-              const errorAlert = await this.alertController.create({
-                header: 'Errore',
-                message: 'Proprietà selezionata non trovata. Riprova.',
-                buttons: ['OK']
-              });
-              await errorAlert.present();
-              return false;
+              await this.presentError('Proprietà non trovata.');
+              return false;            // mantiene l’alert aperto
             }
 
-            console.log('✅ Property found:', selectedProp.propertyName);
+            // === 2. SE È UTILITY, CHIEDI IL DADO ======================
+            if (selectedProp?.propertyType === 'UTILITY') {
+              const dicePrompt = await this.alertController.create({
+                header: 'Tiro di dado',
+                inputs: [{
+                  name: 'diceRoll',
+                  type: 'number',
+                  value: 7,
+                  min: 2,
+                  max: 12,
+                  placeholder: 'Risultato (2‑12)'
+                }],
+                buttons: [
+                  { text: 'Annulla', role: 'cancel' },
+                  {
+                    text: 'Paga',
+                    handler: async ({ diceRoll }) => {
+                      const roll = Number(diceRoll);
+                      if (!Number.isInteger(roll) || roll < 2 || roll > 12) {
+                        await this.presentError('Inserisci un valore tra 2 e 12.');
+                        return false;
+                      }
+                      await this.executeRentPayment(selectedProp, roll);
+                      return true;
+                    }
+                  }
+                ]
+              });
+              await dicePrompt.present();
+            } else {
+              // === 3. PROPRIETÀ NORMALI: NIENTE DADO =================
+              await this.executeRentPayment(selectedProp, 0);
+            }
 
-            // Esegui il pagamento
-            const diceRoll = parseInt(data.diceRoll) || 7;
-            await this.executeRentPayment(selectedProp, diceRoll);
             return true;
           }
         }
       ]
     });
 
-    await alert.present();
+    await propAlert.present();
   }
 
+  /** Alert di servizio per evitare duplicazione di codice */
+  // Removed duplicate presentError implementation
 
   // Utility per calcolare affitto da mostrare
   private calculateDisplayRent(property: PropertyOwnership): { rent: number, description: string } {
@@ -506,8 +497,8 @@ export class GamePageComponent implements OnInit, OnDestroy {
     // Per le società, calcola con dadi 7 come esempio
     if (property.propertyType === 'UTILITY') {
       return {
-        rent: 7 * 4, // Esempio con dadi 7 e 1 società
-        description: '(esempio con dadi 7)'
+        rent: 7 * 4,
+        description: '(da moltiplicare per il tiro di dado)'
       };
     }
 
@@ -979,65 +970,105 @@ export class GamePageComponent implements OnInit, OnDestroy {
       });
     });
   }
-  private async showMultiTransferSelectionModal(properties: PropertyOwnership[], otherPlayers: Player[]) {
-    console.log('=== SHOWING MULTI TRANSFER MODAL ===');
-    console.log('Properties available:', properties.length);
-    console.log('Other players:', otherPlayers.length);
+  /* ***************************************************************** */
+  /*  STEP 0 – entry point                                             */
+  /* ***************************************************************** */
+  async showMultiTransferSelectionModal(
+    properties: PropertyOwnership[],
+    otherPlayers: Player[]
+  ) {
+    // Avvia lo step 1
+    await this.stepSelectRecipient(properties, otherPlayers);
+  }
 
-    // CORREZIONE: Alert semplificato senza stili CSS problematici
+  /* ***************************************************************** */
+  /*  STEP 1 – destinatario                                            */
+  /* ***************************************************************** */
+  private async stepSelectRecipient(
+    properties: PropertyOwnership[],
+    otherPlayers: Player[]
+  ) {
     const alert = await this.alertController.create({
       header: 'Scambio Negoziato',
-      message: 'Seleziona proprietà, destinatario e compenso',
+      message: 'Seleziona il destinatario dello scambio',
+      inputs: otherPlayers.map(p => ({
+        name: 'recipientId',
+        type: 'radio',
+        label: `${p.name} (${this.gameService.formatCurrency(p.balance)})`,
+        value: p.id
+      })),
+      buttons: [
+        { text: 'Annulla', role: 'cancel' },
+        {
+          text: 'Avanti',
+          handler: async (recipientId: string) => {
+            if (!recipientId) return false;             // resta aperto
+            await this.stepSelectProperties(
+              Number(recipientId),
+              properties,
+              otherPlayers
+            );
+            return true;                                // chiude lo step 1
+          }
+        }
+      ]
+    });
+    await alert.present();
+  }
+
+  /* ***************************************************************** */
+  /*  STEP 2 – proprietà da trasferire                                 */
+  /* ***************************************************************** */
+  private async stepSelectProperties(
+    recipientId: number,
+    properties: PropertyOwnership[],
+    otherPlayers: Player[]
+  ) {
+    const inputs = properties.map(p => ({
+      name: 'selectedProps',
+      type: 'checkbox' as const,
+      label: `${p.propertyName} (${this.gameService.formatCurrency(p.propertyPrice)})${p.isMortgaged ? ' [IPOTECATA]' : ''}`,
+      value: p.id
+    }));
+
+    const alert = await this.alertController.create({
+      header: 'Proprietà da trasferire',
+      message: 'Spunta tutte le proprietà da includere nello scambio',
+      inputs,
+      buttons: [
+        { text: 'Indietro', role: 'cancel' },
+        {
+          text: 'Avanti',
+          handler: async (selectedIds: string[]) => {
+            if (!selectedIds?.length) return false;
+            await this.stepCompensation(
+              recipientId,
+              selectedIds.map(Number),  // converte in number[]
+              otherPlayers,
+              properties
+            );
+            return true;                // chiude lo step 2
+          }
+        }
+      ]
+    });
+    await alert.present();
+  }
+
+  /* ***************************************************************** */
+  /*  STEP 3 – compenso + descrizione                                  */
+  /* ***************************************************************** */
+  private async stepCompensation(
+    recipientId: number,
+    selectedPropertyIds: number[],
+    otherPlayers: Player[],
+    properties: PropertyOwnership[]
+  ) {
+    const alert = await this.alertController.create({
+      header: 'Definisci compenso',
+      message: 'Imposta eventuale compenso e descrizione',
       inputs: [
-        // Header destinatario - SENZA stili
-        {
-          name: 'destinatario-header',
-          type: 'text',
-          value: '--- SELEZIONA DESTINATARIO ---',
-          disabled: true
-        },
-        ...otherPlayers.map((player, index) => ({
-          name: 'recipientId',
-          type: 'radio' as const,
-          label: `${player.name} (${this.gameService.formatCurrency(player.balance)})`,
-          value: player.id.toString(),
-          checked: index === 0 // Seleziona automaticamente il primo
-        })),
-
-        // Header proprietà - SENZA stili
-        {
-          name: 'properties-header',
-          type: 'text',
-          value: '--- PROPRIETÀ DA TRASFERIRE ---',
-          disabled: true
-        },
-
-        // Proprietà selezionabili - max 5 per evitare overflow
-        ...properties.slice(0, 5).map(prop => ({
-          name: 'selectedProperties',
-          type: 'checkbox' as const,
-          label: `${prop.propertyName} (${this.gameService.formatCurrency(prop.propertyPrice)})${prop.isMortgaged ? ' [IPOTECATA]' : ''}`,
-          value: prop.id.toString(),
-          checked: false
-        })),
-
-        // Se ci sono più di 5 proprietà, mostra messaggio
-        ...(properties.length > 5 ? [{
-          name: 'more-properties',
-          type: 'text' as const,
-          value: `... e altre ${properties.length - 5} proprietà (usa il modal proprietà per trasferimenti singoli)`,
-          disabled: true
-        }] : []),
-
-        // Header compenso - SENZA stili
-        {
-          name: 'compenso-header',
-          type: 'text',
-          value: '--- COMPENSO MONETARIO ---',
-          disabled: true
-        },
-
-        // Tipo di compenso
+        /* Tipologia compenso */
         {
           name: 'compensationType',
           type: 'radio',
@@ -1049,18 +1080,15 @@ export class GamePageComponent implements OnInit, OnDestroy {
           name: 'compensationType',
           type: 'radio',
           label: 'Ricevo denaro dal destinatario',
-          value: 'receive',
-          checked: false
+          value: 'receive'
         },
         {
           name: 'compensationType',
           type: 'radio',
           label: 'Pago denaro al destinatario',
-          value: 'pay',
-          checked: false
+          value: 'pay'
         },
-
-        // Importo compenso
+        /* Importo */
         {
           name: 'compensationAmount',
           type: 'number',
@@ -1068,8 +1096,7 @@ export class GamePageComponent implements OnInit, OnDestroy {
           value: 0,
           min: 0
         },
-
-        // Descrizione
+        /* Descrizione libera */
         {
           name: 'description',
           type: 'text',
@@ -1078,15 +1105,31 @@ export class GamePageComponent implements OnInit, OnDestroy {
         }
       ],
       buttons: [
-        {
-          text: 'Annulla',
-          role: 'cancel'
-        },
+        { text: 'Indietro', role: 'cancel' },
         {
           text: 'Esegui Scambio',
           handler: async (data) => {
-            console.log('=== MULTI TRANSFER FORM DATA ===', data);
-            return await this.validateAndExecuteSimpleMultiTransfer(data, properties);
+            /* ---------- Validazioni locali ---------- */
+            const amount = Number(data.compensationAmount) || 0;
+            if (amount < 0) {
+              await this.presentError('Il compenso non può essere negativo.');
+              return false;
+            }
+
+            /* ---------- Costruisci oggetto finale ---------- */
+            const transferData = {
+              recipientId,
+              propertyIds: selectedPropertyIds,
+              compensationType: data.compensationType as 'none' | 'receive' | 'pay',
+              compensationAmount: amount,
+              description: data.description?.trim() || 'Scambio negoziato'
+            };
+
+            /* ---------- Validazione business e azione ---------- */
+            return await this.validateAndExecuteSimpleMultiTransfer(
+              transferData,
+              properties   // per le verifiche interne del tuo metodo
+            );
           }
         }
       ]
@@ -1094,6 +1137,19 @@ export class GamePageComponent implements OnInit, OnDestroy {
 
     await alert.present();
   }
+
+  /* ***************************************************************** */
+  /*  Helper: errore rapido                                            */
+  /* ***************************************************************** */
+  private async presentError(message: string) {
+    const err = await this.alertController.create({
+      header: 'Errore',
+      message,
+      buttons: ['OK']
+    });
+    await err.present();
+  }
+
 
   private async validateAndExecuteSimpleMultiTransfer(data: any, allProperties: PropertyOwnership[]): Promise<boolean> {
     console.log('=== VALIDATING SIMPLE MULTI TRANSFER ===', data);

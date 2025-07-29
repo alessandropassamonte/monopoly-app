@@ -403,33 +403,51 @@ export class GamePageComponent implements OnInit, OnDestroy {
 
   // NUOVO: Modal con ricerca per proprietà affittabili
   private async showRentablePropertiesModal(owner: Player, properties: PropertyOwnership[]) {
-    // CORREZIONE: Rimosso cssClass problematico e semplificato
+    console.log('=== SHOWING RENTABLE PROPERTIES MODAL ===');
+    console.log('Owner:', owner.name);
+    console.log('Properties:', properties.length);
+
+    // Creiamo una lista di opzioni per il radio
+    const propertyInputs = properties.map(prop => {
+      const rentInfo = this.calculateDisplayRent(prop);
+      return {
+        name: 'selectedProperty',
+        type: 'radio' as const,
+        label: `${prop.propertyName} - ${this.gameService.formatCurrency(rentInfo.rent)} ${rentInfo.description}`,
+        value: prop.propertyId.toString(), // IMPORTANTE: Convertiamo a stringa
+        checked: false
+      };
+    });
+
     const alert = await this.alertController.create({
       header: `Proprietà di ${owner.name}`,
       message: 'Seleziona la proprietà per pagare l\'affitto',
-      // RIMOSSO: cssClass: 'rent-properties-modal',  // Questa classe causava problemi
       inputs: [
+        // Prima opzione vuota per validazione
         {
           name: 'selectedProperty',
           type: 'radio',
-          label: 'Seleziona Proprietà',
+          label: '--- Seleziona una proprietà ---',
           value: '',
-          checked: false
+          checked: true
         },
-        ...properties.map(prop => {
-          const rentInfo = this.calculateDisplayRent(prop);
-          return {
-            name: 'selectedProperty',
-            type: 'radio' as const,
-            label: `${prop.propertyName} - ${this.gameService.formatCurrency(rentInfo.rent)} ${rentInfo.description}`,
-            value: `${prop.propertyId}`,
-            checked: false
-          };
-        }),
+        ...propertyInputs,
+        // Separatore
+        {
+          name: 'separator',
+          type: 'text',
+          value: '─────────────────────',
+          disabled: true,
+          attributes: {
+            readonly: true,
+            style: 'text-align: center; background: #f0f0f0; border: none;'
+          }
+        },
+        // Input per i dadi (solo per società)
         {
           name: 'diceRoll',
           type: 'number',
-          placeholder: 'Risultato dadi (per società)',
+          placeholder: 'Risultato dadi (2-12, per società)',
           value: 7,
           min: 2,
           max: 12
@@ -445,27 +463,65 @@ export class GamePageComponent implements OnInit, OnDestroy {
         {
           text: 'Paga Affitto',
           handler: async (data) => {
-            if (data.selectedProperty) {
-              const selectedProp = properties.find(p => p.propertyId == data.selectedProperty);
-              if (selectedProp) {
-                await this.executeRentPayment(selectedProp, data.diceRoll || 7);
-              }
+            console.log('=== FORM DATA ===', data);
+
+            // Validazione
+            if (!data.selectedProperty || data.selectedProperty === '') {
+              const errorAlert = await this.alertController.create({
+                header: 'Seleziona Proprietà',
+                message: 'Devi selezionare una proprietà per pagare l\'affitto.',
+                buttons: ['OK']
+              });
+              await errorAlert.present();
+              return false; // Impedisce la chiusura del modal
             }
+
+            // Trova la proprietà selezionata
+            const selectedProp = properties.find(p => p.propertyId.toString() === data.selectedProperty);
+            if (!selectedProp) {
+              console.error('Property not found:', data.selectedProperty);
+              return false;
+            }
+
+            // Esegui il pagamento
+            const diceRoll = parseInt(data.diceRoll) || 7;
+            await this.executeRentPayment(selectedProp, diceRoll);
+            return true; // Permette la chiusura del modal
           }
         }
       ]
     });
+
     await alert.present();
   }
+
   // Utility per calcolare affitto da mostrare
   private calculateDisplayRent(property: PropertyOwnership): { rent: number, description: string } {
-    if (property.propertyType === 'UTILITY') {
+    // Se è ipotecata, affitto = 0
+    if (property.isMortgaged) {
       return {
-        rent: 7 * 4, // Esempio con dadi 7
-        description: '(con dadi 7)'
+        rent: 0,
+        description: '(IPOTECATA - Affitto non dovuto)'
       };
     }
 
+    // Per le società, calcola con dadi 7 come esempio
+    if (property.propertyType === 'UTILITY') {
+      return {
+        rent: 7 * 4, // Esempio con dadi 7 e 1 società
+        description: '(esempio con dadi 7)'
+      };
+    }
+
+    // Per le stazioni
+    if (property.propertyType === 'RAILROAD') {
+      return {
+        rent: property.currentRent,
+        description: '(stazione)'
+      };
+    }
+
+    // Per le strade
     let description = '';
     if (property.hasHotel) {
       description = '(Hotel)';
@@ -482,36 +538,67 @@ export class GamePageComponent implements OnInit, OnDestroy {
   }
 
   private async executeRentPayment(property: PropertyOwnership, diceRoll: number) {
+    console.log('=== EXECUTING RENT PAYMENT ===');
+    console.log('Property:', property.propertyName);
+    console.log('Dice roll:', diceRoll);
+    console.log('Tenant:', this.currentPlayer?.name);
+
+    if (!this.currentPlayer) {
+      console.error('No current player for rent payment');
+      return;
+    }
+
     const loading = await this.loadingController.create({
-      message: 'Pagamento affitto...'
+      message: `Pagando affitto per ${property.propertyName}...`
     });
     await loading.present();
 
     try {
+      // CORREZIONE: Usa propertyId invece di id
       const transaction = await firstValueFrom(
-        this.apiService.payRent(property.propertyId, this.currentPlayer!.id, diceRoll)
+        this.apiService.payRent(property.propertyId, this.currentPlayer.id, diceRoll)
       );
 
+      console.log('✅ Rent payment successful:', transaction);
+
+      // Mostra conferma
       const alert = await this.alertController.create({
-        header: 'Affitto Pagato',
+        header: '💰 Affitto Pagato',
         message: `Hai pagato ${this.gameService.formatCurrency(transaction.amount)} per "${property.propertyName}"`,
-        buttons: ['OK']
+        buttons: [
+          {
+            text: 'OK',
+            handler: () => {
+              // Aggiorna i dati dopo il pagamento
+              this.loadGameData();
+            }
+          }
+        ]
       });
       await alert.present();
 
     } catch (error) {
-      console.error('Rent payment error:', error);
-      const alert = await this.alertController.create({
-        header: 'Errore Pagamento',
-        message: 'Errore nel pagamento dell\'affitto. Verifica i fondi disponibili.',
+      console.error('❌ Rent payment error:', error);
+
+      let errorMessage = 'Errore nel pagamento dell\'affitto.';
+
+      // Gestisci errori specifici
+      if (error.status === 400) {
+        errorMessage = error.error?.message || 'Richiesta non valida (proprietà ipotecata o fondi insufficienti)';
+      } else if (error.status === 404) {
+        errorMessage = 'Proprietà non trovata';
+      }
+
+      const errorAlert = await this.alertController.create({
+        header: '❌ Errore Pagamento',
+        message: errorMessage,
         buttons: ['OK']
       });
-      await alert.present();
+      await errorAlert.present();
     } finally {
       loading.dismiss();
     }
   }
-
   // ============================================
   // Trasferimento denaro semplificato
   // ============================================
@@ -806,7 +893,7 @@ export class GamePageComponent implements OnInit, OnDestroy {
       const properties = await firstValueFrom(this.apiService.getPlayerProperties(this.currentPlayer.id));
       const propertiesList = properties || [];
 
-      // Filtra proprietà senza edifici (requisito per trasferimento)
+      // CORREZIONE: Filtra proprietà trasferibili (senza edifici)
       const transferableProperties = propertiesList.filter(p => p.houses === 0 && !p.hasHotel);
 
       loading.dismiss();
@@ -814,15 +901,39 @@ export class GamePageComponent implements OnInit, OnDestroy {
       if (transferableProperties.length === 0) {
         const alert = await this.alertController.create({
           header: 'Nessuna Proprietà Trasferibile',
-          message: 'Non hai proprietà senza edifici da trasferire.',
+          message: 'Non hai proprietà senza edifici da trasferire. Vendi prima case e hotel.',
           buttons: ['OK']
         });
         await alert.present();
         return;
       }
 
-      // Mostra modal di trasferimento multiplo
-      await this.showMultiTransferSelectionModal(transferableProperties);
+      // CORREZIONE: Ottieni la sessione corrente in modo sicuro
+      const session = await this.getCurrentSession();
+      if (!session) {
+        const alert = await this.alertController.create({
+          header: 'Errore',
+          message: 'Sessione non disponibile.',
+          buttons: ['OK']
+        });
+        await alert.present();
+        return;
+      }
+
+      const otherPlayers = session.players.filter(p => p.id !== this.currentPlayer?.id) || [];
+
+      if (otherPlayers.length === 0) {
+        const alert = await this.alertController.create({
+          header: 'Errore',
+          message: 'Non ci sono altri giocatori disponibili.',
+          buttons: ['OK']
+        });
+        await alert.present();
+        return;
+      }
+
+      // Mostra modal di selezione
+      await this.showMultiTransferSelectionModal(transferableProperties, otherPlayers);
 
     } catch (error) {
       console.error('Error loading properties for transfer:', error);
@@ -835,86 +946,113 @@ export class GamePageComponent implements OnInit, OnDestroy {
     }
   }
 
-  private async showMultiTransferSelectionModal(properties: PropertyOwnership[]) {
-    // Ottieni lista altri giocatori
-    const otherPlayers = this.currentSession?.players.filter(p => p.id !== this.currentPlayer?.id) || [];
-
-    if (otherPlayers.length === 0) {
-      const alert = await this.alertController.create({
-        header: 'Errore',
-        message: 'Non ci sono altri giocatori disponibili.',
-        buttons: ['OK']
+  private async getCurrentSession(): Promise<GameSession | null> {
+    return new Promise((resolve) => {
+      this.gameService.getCurrentSession().subscribe(session => {
+        resolve(session);
       });
-      await alert.present();
-      return;
-    }
+    });
+  }
+  private async showMultiTransferSelectionModal(properties: PropertyOwnership[], otherPlayers: Player[]) {
+    console.log('=== SHOWING MULTI TRANSFER MODAL ===');
+    console.log('Properties available:', properties.length);
+    console.log('Other players:', otherPlayers.length);
 
     const alert = await this.alertController.create({
-      header: 'Trasferimento Multiplo Proprietà',
-      message: 'Seleziona proprietà, destinatario e importo',
+      header: '🔄 Scambio Negoziato',
+      message: 'Seleziona proprietà, destinatario e compenso',
       cssClass: 'multi-transfer-modal',
       inputs: [
-        // Selezione giocatore destinatario
+        // Selezione destinatario
         {
-          name: 'recipientId',
-          type: 'radio',
-          label: 'Destinatario',
-          value: '',
-          checked: false
+          name: 'destinatario',
+          type: 'text',
+          value: '🎯 SELEZIONA DESTINATARIO',
+          disabled: true,
+          attributes: {
+            readonly: true,
+            style: 'text-align: center; font-weight: bold; background: #e3f2fd; border: none; color: #1976d2;'
+          }
         },
         ...otherPlayers.map(player => ({
           name: 'recipientId',
           type: 'radio' as const,
           label: `${player.name} (${this.gameService.formatCurrency(player.balance)})`,
-          value: `${player.id}`,
+          value: player.id.toString(),
           checked: false
         })),
 
-        // Separatore
+        // Separatore proprietà
         {
           name: 'separator1',
           type: 'text',
-          value: '─────── PROPRIETÀ DA TRASFERIRE ───────',
+          value: '🏠 PROPRIETÀ DA TRASFERIRE',
           disabled: true,
           attributes: {
             readonly: true,
-            style: 'text-align: center; font-weight: bold; background: #f0f0f0; border: none;'
+            style: 'text-align: center; font-weight: bold; background: #f3e5f5; border: none; color: #7b1fa2; margin-top: 1rem;'
           }
         },
 
-        // Proprietà selezionabili (checkbox)
+        // Proprietà selezionabili
         ...properties.map(prop => ({
           name: 'selectedProperties',
           type: 'checkbox' as const,
           label: `${prop.propertyName} (${this.gameService.formatCurrency(prop.propertyPrice)})${prop.isMortgaged ? ' [IPOTECATA]' : ''}`,
-          value: `${prop.id}`,
+          value: prop.id.toString(),
           checked: false
         })),
 
-        // Separatore
+        // Separatore compenso
         {
           name: 'separator2',
           type: 'text',
-          value: '─────── COMPENSO MONETARIO ───────',
+          value: '💰 COMPENSO MONETARIO',
           disabled: true,
           attributes: {
             readonly: true,
-            style: 'text-align: center; font-weight: bold; background: #f0f0f0; border: none;'
+            style: 'text-align: center; font-weight: bold; background: #e8f5e8; border: none; color: #2e7d32; margin-top: 1rem;'
           }
         },
 
-        // Importo da trasferire
+        // Tipo di compenso
         {
-          name: 'transferAmount',
-          type: 'number',
-          placeholder: 'Importo da ricevere/pagare (+ ricevi, - paghi)',
-          value: 0
+          name: 'compensationType',
+          type: 'radio',
+          label: 'Nessun compenso',
+          value: 'none',
+          checked: true
         },
+        {
+          name: 'compensationType',
+          type: 'radio',
+          label: 'Ricevo denaro dal destinatario',
+          value: 'receive',
+          checked: false
+        },
+        {
+          name: 'compensationType',
+          type: 'radio',
+          label: 'Pago denaro al destinatario',
+          value: 'pay',
+          checked: false
+        },
+
+        // Importo compenso
+        {
+          name: 'compensationAmount',
+          type: 'number',
+          placeholder: 'Importo compenso (se selezionato sopra)',
+          value: 0,
+          min: 0
+        },
+
+        // Descrizione
         {
           name: 'description',
           type: 'text',
-          placeholder: 'Descrizione dello scambio',
-          value: 'Scambio negoziato proprietà'
+          placeholder: 'Descrizione dello scambio (opzionale)',
+          value: 'Scambio negoziato'
         }
       ],
       buttons: [
@@ -923,78 +1061,234 @@ export class GamePageComponent implements OnInit, OnDestroy {
           role: 'cancel'
         },
         {
-          text: 'Trasferisci',
+          text: 'Esegui Scambio',
           handler: async (data) => {
-            await this.executeMultiPropertyTransfer(data, properties);
+            console.log('=== FORM DATA RECEIVED ===', data);
+            const result = await this.validateAndExecuteMultiTransfer(data, properties);
+            return result; // true = chiude modal, false = mantiene aperto
           }
         }
       ]
+    });
+
+    await alert.present();
+  }
+
+  /**
+   * NUOVO: Validazione ed esecuzione trasferimento multiplo
+   */
+  private async validateAndExecuteMultiTransfer(data: any, allProperties: PropertyOwnership[]): Promise<boolean> {
+    console.log('=== VALIDATING MULTI TRANSFER ===', data);
+
+    // Validazione destinatario
+    if (!data.recipientId) {
+      await this.showValidationError('Destinatario Mancante', 'Seleziona il giocatore destinatario.');
+      return false;
+    }
+
+    // Validazione proprietà
+    if (!data.selectedProperties || data.selectedProperties.length === 0) {
+      await this.showValidationError('Proprietà Mancanti', 'Seleziona almeno una proprietà da trasferire.');
+      return false;
+    }
+
+    // Preparazione dati
+    const selectedIds = Array.isArray(data.selectedProperties) ? data.selectedProperties : [data.selectedProperties];
+    const selectedProperties = allProperties.filter(p => selectedIds.includes(p.id.toString()));
+    const recipientId = parseInt(data.recipientId);
+
+    // CORREZIONE: Ottieni recipient in modo sicuro
+    let recipient: Player | undefined;
+    try {
+      const session = await this.getCurrentSession();
+      recipient = session?.players?.find(p => p.id === recipientId);
+    } catch (error) {
+      console.error('Error getting session for recipient:', error);
+    }
+
+    if (!recipient) {
+      await this.showValidationError('Errore', 'Destinatario non trovato.');
+      return false;
+    }
+
+    // Calcolo compenso
+    let compensationAmount = 0;
+    if (data.compensationType === 'receive' || data.compensationType === 'pay') {
+      compensationAmount = parseFloat(data.compensationAmount) || 0;
+      if (compensationAmount <= 0) {
+        await this.showValidationError('Compenso Non Valido', 'Inserisci un importo valido per il compenso.');
+        return false;
+      }
+
+      // Se "pay", il compenso è negativo (il current player paga)
+      if (data.compensationType === 'pay') {
+        compensationAmount = -compensationAmount;
+      }
+    }
+
+    // Verifica fondi per il pagamento
+    if (compensationAmount < 0 && this.currentPlayer!.balance < Math.abs(compensationAmount)) {
+      await this.showValidationError('Fondi Insufficienti', 'Non hai abbastanza denaro per il pagamento.');
+      return false;
+    }
+
+    if (compensationAmount > 0 && recipient.balance < compensationAmount) {
+      await this.showValidationError('Fondi Insufficienti', `${recipient.name} non ha abbastanza denaro per il compenso.`);
+      return false;
+    }
+
+    // Mostra conferma
+    const confirmed = await this.showTransferConfirmation(selectedProperties, recipient, compensationAmount, data.description);
+    if (!confirmed) {
+      return false;
+    }
+
+    // Esegui trasferimento
+    return await this.executeMultiPropertyTransfer(selectedProperties, recipientId, compensationAmount, data.description);
+  }
+
+  /**
+   * NUOVO: Mostra errore di validazione
+   */
+  private async showValidationError(header: string, message: string): Promise<void> {
+    const alert = await this.alertController.create({
+      header: `❌ ${header}`,
+      message,
+      buttons: ['OK']
     });
     await alert.present();
   }
 
-  private async executeMultiPropertyTransfer(data: any, allProperties: PropertyOwnership[]) {
-    // Validazione
-    if (!data.recipientId) {
-      const alert = await this.alertController.create({
-        header: 'Errore',
-        message: 'Seleziona un destinatario',
-        buttons: ['OK']
-      });
-      await alert.present();
-      return;
-    }
 
-    if (!data.selectedProperties || data.selectedProperties.length === 0) {
-      const alert = await this.alertController.create({
-        header: 'Errore',
-        message: 'Seleziona almeno una proprietà',
-        buttons: ['OK']
-      });
-      await alert.present();
-      return;
-    }
 
-    const selectedIds = Array.isArray(data.selectedProperties) ? data.selectedProperties : [data.selectedProperties];
-    const selectedProperties = allProperties.filter(p => selectedIds.includes(p.id.toString()));
-    const transferAmount = parseFloat(data.transferAmount) || 0;
-    const recipientId = parseInt(data.recipientId);
+  /**
+   * NUOVO: Mostra conferma trasferimento
+   */
+  private async showTransferConfirmation(
+    properties: PropertyOwnership[],
+    recipient: Player,
+    compensationAmount: number,
+    description: string
+  ): Promise<boolean> {
+    const totalValue = properties.reduce((sum, p) => sum + p.propertyPrice, 0);
 
-    // Conferma dell'operazione
-    const recipient = this.currentSession?.players.find(p => p.id === recipientId);
-    const totalValue = selectedProperties.reduce((sum, p) => sum + p.propertyPrice, 0);
+    let message = `🔄 CONFERMA SCAMBIO NEGOZIATO\n\n`;
+    message += `📤 DA: ${this.currentPlayer?.name}\n`;
+    message += `📥 A: ${recipient.name}\n\n`;
+    message += `🏠 PROPRIETÀ (${properties.length}):\n`;
 
-    let confirmMessage = `TRASFERIMENTO MULTIPLO\n\n`;
-    confirmMessage += `Destinatario: ${recipient?.name}\n`;
-    confirmMessage += `Proprietà (${selectedProperties.length}):\n`;
-    selectedProperties.forEach(p => {
-      confirmMessage += `• ${p.propertyName} (${this.gameService.formatCurrency(p.propertyPrice)})\n`;
+    properties.forEach((p, index) => {
+      message += `${index + 1}. ${p.propertyName} (${this.gameService.formatCurrency(p.propertyPrice)})\n`;
     });
-    confirmMessage += `\nValore totale proprietà: ${this.gameService.formatCurrency(totalValue)}\n`;
 
-    if (transferAmount > 0) {
-      confirmMessage += `Riceverai: ${this.gameService.formatCurrency(transferAmount)}\n`;
-    } else if (transferAmount < 0) {
-      confirmMessage += `Pagherai: ${this.gameService.formatCurrency(Math.abs(transferAmount))}\n`;
+    message += `\n💎 Valore totale: ${this.gameService.formatCurrency(totalValue)}\n`;
+
+    if (compensationAmount > 0) {
+      message += `\n💰 ${recipient.name} pagherà: ${this.gameService.formatCurrency(compensationAmount)}`;
+    } else if (compensationAmount < 0) {
+      message += `\n💸 Tu pagherai: ${this.gameService.formatCurrency(Math.abs(compensationAmount))}`;
+    } else {
+      message += `\n🎁 Nessun compenso monetario`;
     }
 
-    const confirmation = await this.alertController.create({
-      header: 'Conferma Trasferimento',
-      message: confirmMessage,
-      buttons: [
-        {
-          text: 'Annulla',
-          role: 'cancel'
-        },
-        {
-          text: 'Conferma',
-          handler: async () => {
-            await this.performMultiPropertyTransfer(selectedProperties, recipientId, transferAmount, data.description);
+    if (description && description.trim()) {
+      message += `\n\n📝 ${description}`;
+    }
+
+    return new Promise(async (resolve) => {
+      const alert = await this.alertController.create({
+        header: 'Conferma Scambio',
+        message,
+        buttons: [
+          {
+            text: 'Annulla',
+            handler: () => resolve(false)
+          },
+          {
+            text: 'Conferma Scambio',
+            handler: () => resolve(true)
           }
-        }
-      ]
+        ]
+      });
+      await alert.present();
     });
-    await confirmation.present();
+  }
+
+  /**
+   * CORRETTO: Esecuzione trasferimento multiplo
+   */
+  private async executeMultiPropertyTransfer(
+    properties: PropertyOwnership[],
+    recipientId: number,
+    compensationAmount: number,
+    description: string
+  ): Promise<boolean> {
+
+    const loading = await this.loadingController.create({
+      message: 'Esecuzione scambio...'
+    });
+    await loading.present();
+
+    try {
+      console.log('=== EXECUTING MULTI PROPERTY TRANSFER ===');
+      console.log('Properties:', properties.map(p => p.propertyName));
+      console.log('Recipient ID:', recipientId);
+      console.log('Compensation:', compensationAmount);
+
+      const ownershipIds = properties.map(p => p.id);
+
+      // CORREZIONE: Usa il nuovo metodo API
+      const result = await firstValueFrom(
+        this.apiService.transferMultipleProperties(ownershipIds, recipientId, compensationAmount, description)
+      );
+
+      console.log('✅ Multi transfer completed successfully:', result.length);
+
+      // Ricarica i dati
+      await this.loadGameData();
+
+      // CORREZIONE: Ottieni recipient name in modo sicuro
+      let recipientName = 'Giocatore';
+      try {
+        const session = await this.getCurrentSession();
+        const recipient = session?.players?.find(p => p.id === recipientId);
+        if (recipient) {
+          recipientName = recipient.name;
+        }
+      } catch (error) {
+        console.warn('Could not get recipient name:', error);
+      }
+
+      // Mostra successo
+      const alert = await this.alertController.create({
+        header: '✅ Scambio Completato',
+        message: `${properties.length} proprietà trasferite con successo a ${recipientName}!`,
+        buttons: ['OK']
+      });
+      await alert.present();
+
+      return true; // Chiude il modal
+
+    } catch (error) {
+      console.error('❌ Multi transfer error:', error);
+
+      let errorMessage = 'Errore durante il trasferimento.';
+      if (error.status === 400) {
+        errorMessage = error.error?.message || 'Dati non validi o fondi insufficienti.';
+      }
+
+      const alert = await this.alertController.create({
+        header: '❌ Errore Scambio',
+        message: errorMessage,
+        buttons: ['OK']
+      });
+      await alert.present();
+
+      return false; // Mantiene aperto il modal
+
+    } finally {
+      loading.dismiss();
+    }
   }
 
   private async performMultiPropertyTransfer(

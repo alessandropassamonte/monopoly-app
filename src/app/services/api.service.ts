@@ -15,9 +15,9 @@ import { environment } from 'src/environment';
 })
 export class ApiService {
   // private readonly baseUrl = 'http://localhost:8080/api';
-    private readonly baseUrl = environment.api_url +'api';
+  private readonly baseUrl = environment.api_url + 'api';
 
-  constructor(private http: HttpClient) {}
+  constructor(private http: HttpClient) { }
 
   // ============================================
   // Game Session APIs
@@ -53,7 +53,7 @@ export class ApiService {
   transferMoney(fromPlayerId: number, toPlayerId: number, amount: number, description: string): Observable<Transaction> {
     return this.http.post<Transaction>(`${this.baseUrl}/bank/transfer`, {
       fromPlayerId,
-      toPlayerId, 
+      toPlayerId,
       amount,
       description
     });
@@ -88,7 +88,7 @@ export class ApiService {
 
   purchaseProperty(propertyId: number, playerId: number): Observable<PropertyOwnership> {
     return this.http.post<PropertyOwnership>(
-      `${this.baseUrl}/properties/${propertyId}/purchase?playerId=${playerId}`, 
+      `${this.baseUrl}/properties/${propertyId}/purchase?playerId=${playerId}`,
       {}
     );
   }
@@ -120,7 +120,7 @@ export class ApiService {
   // ============================================
   // NUOVO: APIs per pagamento affitti semplificato
   // ============================================
-  
+
   /**
    * Pagamento affitto con calcolo automatico
    */
@@ -178,7 +178,7 @@ export class ApiService {
   // ============================================
   // Vendita edifici
   // ============================================
-  
+
   /**
    * Vendita casa
    */
@@ -196,10 +196,11 @@ export class ApiService {
   /**
    * Trasferimento proprietà tra giocatori
    */
-  transferProperty(ownershipId: number, newOwnerId: number, price?: number): Observable<PropertyOwnership> {
+  transferProperty(ownershipId: number, newOwnerId: number, price?: number, description?: string): Observable<PropertyOwnership> {
     return this.http.post<PropertyOwnership>(`${this.baseUrl}/properties/ownership/${ownershipId}/transfer`, {
       newOwnerId,
-      price: price || null
+      price: price || null,
+      description: description || 'Trasferimento proprietà'
     });
   }
 
@@ -213,7 +214,7 @@ export class ApiService {
   // ============================================
   // NUOVO: APIs semplificate per building costs
   // ============================================
-  
+
   /**
    * NUOVO: Ottieni il costo di costruzione per un gruppo colore
    */
@@ -251,7 +252,7 @@ export class ApiService {
   // ============================================
   // Bankruptcy APIs
   // ============================================
-  
+
   /**
    * Calcola il valore di liquidazione di un giocatore
    */
@@ -269,15 +270,15 @@ export class ApiService {
   /**
    * Liquidazione forzata degli asset
    */
-  liquidateAssets(playerId: number): Observable<{liquidatedAmount: number, message: string}> {
-    return this.http.post<{liquidatedAmount: number, message: string}>(`${this.baseUrl}/bankruptcy/liquidate/${playerId}`, {});
+  liquidateAssets(playerId: number): Observable<{ liquidatedAmount: number, message: string }> {
+    return this.http.post<{ liquidatedAmount: number, message: string }>(`${this.baseUrl}/bankruptcy/liquidate/${playerId}`, {});
   }
 
   /**
    * Dichiarazione di bancarotta
    */
-  declareBankruptcy(bankruptPlayerId: number, creditorPlayerId?: number): Observable<{status: string, message: string}> {
-    return this.http.post<{status: string, message: string}>(`${this.baseUrl}/bankruptcy/declare`, {
+  declareBankruptcy(bankruptPlayerId: number, creditorPlayerId?: number): Observable<{ status: string, message: string }> {
+    return this.http.post<{ status: string, message: string }>(`${this.baseUrl}/bankruptcy/declare`, {
       bankruptPlayerId,
       creditorPlayerId: creditorPlayerId || null
     });
@@ -303,7 +304,7 @@ export class ApiService {
   // ============================================
   // NUOVO: APIs per statistiche e reportistica
   // ============================================
-  
+
   /**
    * NUOVO: Ottieni statistiche complete di un giocatore
    */
@@ -373,7 +374,7 @@ export class ApiService {
   // ============================================
   // NUOVO: APIs per quick actions
   // ============================================
-  
+
   /**
    * NUOVO: Quick transfer - trasferimento veloce tra giocatori comuni
    */
@@ -425,7 +426,7 @@ export class ApiService {
   // ============================================
   // NUOVO: APIs per validazioni
   // ============================================
-  
+
   /**
    * NUOVO: Valida se un'azione è possibile prima di eseguirla
    */
@@ -455,7 +456,7 @@ export class ApiService {
   // ============================================
   // NUOVO: APIs per report e export
   // ============================================
-  
+
   /**
    * NUOVO: Esporta dati di gioco in formato CSV
    */
@@ -472,5 +473,36 @@ export class ApiService {
     return this.http.get(`${this.baseUrl}/export/${sessionCode}/report`, {
       responseType: 'blob'
     });
+  }
+
+  transferMultipleProperties(
+    ownershipIds: number[],
+    newOwnerId: number,
+    compensationAmount?: number,
+    description?: string
+  ): Observable<PropertyOwnership[]> {
+    return this.http.post<PropertyOwnership[]>(`${this.baseUrl}/properties/transfer-multiple`, {
+      ownershipIds,
+      newOwnerId,
+      compensationAmount: compensationAmount || 0,
+      description: description || 'Scambio negoziato proprietà'
+    });
+  }
+
+  /**
+ * NUOVO: Verifica possibilità trasferimento
+ */
+  canTransferProperty(ownershipId: number): Observable<{
+    canTransfer: boolean;
+    hasBuildings: boolean;
+    isMortgaged: boolean;
+    reasons: string[];
+  }> {
+    return this.http.get<{
+      canTransfer: boolean;
+      hasBuildings: boolean;
+      isMortgaged: boolean;
+      reasons: string[];
+    }>(`${this.baseUrl}/properties/ownership/${ownershipId}/transfer-info`);
   }
 }

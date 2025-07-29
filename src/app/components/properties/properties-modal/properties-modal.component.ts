@@ -20,7 +20,7 @@ import { CommonModule } from '@angular/common';
 })
 export class PropertiesModalComponent implements OnInit {
   @Input() currentPlayerOnly: boolean = true;
-  
+
   selectedSegment = 'available';
   availableProperties: Property[] = [];
   filteredAvailableProperties: Property[] = []; // NUOVO: Lista filtrata
@@ -61,7 +61,7 @@ export class PropertiesModalComponent implements OnInit {
     try {
       // Ottieni il giocatore corrente
       await this.loadCurrentPlayer();
-      
+
       if (!this.currentPlayer) {
         throw new Error('Giocatore corrente non identificato');
       }
@@ -165,7 +165,7 @@ export class PropertiesModalComponent implements OnInit {
       property => !this.ownedPropertyIds.has(property.id)
     );
     console.log('Available properties after filter:', this.availableProperties.length);
-    
+
     // AGGIUNTO: Applica filtro di ricerca
     this.applyAvailablePropertiesFilter();
   }
@@ -224,7 +224,7 @@ export class PropertiesModalComponent implements OnInit {
   // ============================================
   // NUOVO: Metodi per la ricerca
   // ============================================
-  
+
   /**
    * Applica il filtro di ricerca alle proprietà disponibili
    */
@@ -237,9 +237,9 @@ export class PropertiesModalComponent implements OnInit {
     const term = this.searchTerm.toLowerCase().trim();
     this.filteredAvailableProperties = this.availableProperties.filter(property => {
       return property.name.toLowerCase().includes(term) ||
-             property.colorGroup.toLowerCase().includes(term) ||
-             property.type.toLowerCase().includes(term) ||
-             this.getPropertyTypeLabel(property.type).toLowerCase().includes(term);
+        property.colorGroup.toLowerCase().includes(term) ||
+        property.type.toLowerCase().includes(term) ||
+        this.getPropertyTypeLabel(property.type).toLowerCase().includes(term);
     });
 
     console.log(`Filtered available properties: ${this.filteredAvailableProperties.length}/${this.availableProperties.length}`);
@@ -257,9 +257,9 @@ export class PropertiesModalComponent implements OnInit {
     const term = this.ownedSearchTerm.toLowerCase().trim();
     this.filteredCurrentPlayerProperties = this.currentPlayerProperties.filter(property => {
       return property.propertyName.toLowerCase().includes(term) ||
-             property.colorGroup.toLowerCase().includes(term) ||
-             property.propertyType.toLowerCase().includes(term) ||
-             this.getPropertyTypeLabel(property.propertyType).toLowerCase().includes(term);
+        property.colorGroup.toLowerCase().includes(term) ||
+        property.propertyType.toLowerCase().includes(term) ||
+        this.getPropertyTypeLabel(property.propertyType).toLowerCase().includes(term);
     });
 
     console.log(`Filtered owned properties: ${this.filteredCurrentPlayerProperties.length}/${this.currentPlayerProperties.length}`);
@@ -698,56 +698,144 @@ export class PropertiesModalComponent implements OnInit {
   // Trasferimento proprietà (invariato)
   // ============================================
   async transferProperty(ownership: PropertyOwnership) {
-    // Ottieni la sessione corrente per trovare gli altri giocatori
-    const session = await new Promise<any>((resolve) => {
-      this.gameService.getCurrentSession().subscribe(session => resolve(session));
-    });
+    console.log('=== INITIATING SINGLE PROPERTY TRANSFER ===');
+    console.log('Property:', ownership.propertyName);
 
-    if (!session?.players) {
-      const alert = await this.alertController.create({
-        header: 'Errore',
-        message: 'Sessione non disponibile',
-        buttons: ['OK']
-      });
-      await alert.present();
-      return;
-    }
-
-    const availablePlayers = session.players.filter((p: any) => p.id !== this.currentPlayer?.id);
-
-    if (availablePlayers.length === 0) {
+    // Verifica se la proprietà può essere trasferita
+    if (ownership.houses > 0 || ownership.hasHotel) {
       const alert = await this.alertController.create({
         header: 'Impossibile Trasferire',
-        message: 'Non ci sono altri giocatori disponibili.',
+        message: `Non puoi trasferire "${ownership.propertyName}" perché ha edifici. Vendi prima case e hotel.`,
         buttons: ['OK']
       });
       await alert.present();
       return;
     }
 
+    // CORREZIONE: Ottieni la sessione corrente tramite gameService
+    try {
+      const session = await new Promise<any>((resolve, reject) => {
+        this.gameService.getCurrentSession().subscribe({
+          next: (session) => {
+            if (session) {
+              resolve(session);
+            } else {
+              reject(new Error('Sessione non disponibile'));
+            }
+          },
+          error: (error) => reject(error)
+        });
+      });
+
+      if (!session?.players) {
+        const alert = await this.alertController.create({
+          header: 'Errore',
+          message: 'Sessione non disponibile',
+          buttons: ['OK']
+        });
+        await alert.present();
+        return;
+      }
+
+      const availablePlayers = session.players.filter((p: any) => p.id !== this.currentPlayer?.id);
+
+      if (availablePlayers.length === 0) {
+        const alert = await this.alertController.create({
+          header: 'Impossibile Trasferire',
+          message: 'Non ci sono altri giocatori disponibili.',
+          buttons: ['OK']
+        });
+        await alert.present();
+        return;
+      }
+
+      // Continua con il modal di trasferimento
+      await this.showSingleTransferModal(ownership, availablePlayers);
+
+    } catch (error) {
+      console.error('Error getting current session:', error);
+      const alert = await this.alertController.create({
+        header: 'Errore',
+        message: 'Impossibile accedere alla sessione di gioco',
+        buttons: ['OK']
+      });
+      await alert.present();
+    }
+  }
+
+  private async showSingleTransferModal(ownership: PropertyOwnership, availablePlayers: any[]) {
     const alert = await this.alertController.create({
-      header: `Trasferisci "${ownership.propertyName}"`,
-      message: 'Seleziona il nuovo proprietario e il prezzo (opzionale)',
+      header: `🔄 Trasferisci "${ownership.propertyName}"`,
+      message: `Valore proprietà: ${this.gameService.formatCurrency(ownership.propertyPrice)}\n${ownership.isMortgaged ? '⚠️ PROPRIETÀ IPOTECATA' : ''}`,
       inputs: [
+        // Sezione destinatario
         {
-          name: 'newOwnerId',
-          type: 'radio' as const,
-          label: 'Nuovo Proprietario',
-          value: '',
-          checked: false
+          name: 'destinatario-header',
+          type: 'text',
+          value: '🎯 SELEZIONA DESTINATARIO',
+          disabled: true,
+          attributes: {
+            readonly: true,
+            style: 'text-align: center; font-weight: bold; background: #e3f2fd; border: none; color: #1976d2; margin-bottom: 0.5rem;'
+          }
         },
         ...availablePlayers.map((player: any) => ({
           name: 'newOwnerId',
           type: 'radio' as const,
           label: `${player.name} (${this.gameService.formatCurrency(player.balance)})`,
-          value: `${player.id}`,  
+          value: `${player.id}`,
           checked: false
         })),
+
+        // Separatore
         {
-          name: 'price',
-          type: 'number' as const,
-          placeholder: 'Prezzo (lascia vuoto per regalo)',
+          name: 'separator',
+          type: 'text',
+          value: '💰 PREZZO (opzionale)',
+          disabled: true,
+          attributes: {
+            readonly: true,
+            style: 'text-align: center; font-weight: bold; background: #e8f5e8; border: none; color: #2e7d32; margin-top: 1rem; margin-bottom: 0.5rem;'
+          }
+        },
+
+        // Opzioni prezzo
+        {
+          name: 'priceType',
+          type: 'radio',
+          label: '🎁 Regalo (gratuito)',
+          value: 'gift',
+          checked: true
+        },
+        {
+          name: 'priceType',
+          type: 'radio',
+          label: '💎 Valore pieno proprietà',
+          value: 'full',
+          checked: false
+        },
+        {
+          name: 'priceType',
+          type: 'radio',
+          label: '💵 Prezzo personalizzato',
+          value: 'custom',
+          checked: false
+        },
+
+        // Prezzo personalizzato
+        {
+          name: 'customPrice',
+          type: 'number',
+          placeholder: 'Inserisci prezzo personalizzato',
           min: 0
+        },
+
+        // Descrizione
+        {
+          name: 'description',
+          type: 'text',
+          placeholder: 'Motivo del trasferimento (opzionale)',
+          value: `Trasferimento ${ownership.propertyName}`
         }
       ],
       buttons: [
@@ -758,14 +846,213 @@ export class PropertiesModalComponent implements OnInit {
         {
           text: 'Trasferisci',
           handler: async (data) => {
-            if (data.newOwnerId) {
-              await this.executeTransferProperty(ownership, data.newOwnerId, data.price);
-            }
+            console.log('=== TRANSFER FORM DATA ===', data);
+            const result = await this.validateAndExecuteSingleTransfer(data, ownership, availablePlayers);
+            return result; // true = chiude modal, false = mantiene aperto
           }
         }
       ]
     });
     await alert.present();
+  }
+  /**
+   * NUOVO: Validazione ed esecuzione trasferimento singolo
+   */
+
+  private async validateAndExecuteSingleTransfer(
+    data: any,
+    ownership: PropertyOwnership,
+    availablePlayers: any[]
+  ): Promise<boolean> {
+    console.log('=== VALIDATING SINGLE TRANSFER ===', data);
+
+    // Validazione destinatario
+    if (!data.newOwnerId) {
+      await this.showTransferError('Destinatario Mancante', 'Seleziona il giocatore destinatario.');
+      return false;
+    }
+
+    const newOwner = availablePlayers.find(p => p.id.toString() === data.newOwnerId);
+    if (!newOwner) {
+      await this.showTransferError('Errore', 'Destinatario non trovato.');
+      return false;
+    }
+
+    // Calcolo prezzo
+    let price = 0;
+    switch (data.priceType) {
+      case 'gift':
+        price = 0;
+        break;
+      case 'full':
+        price = ownership.propertyPrice;
+        break;
+      case 'custom':
+        price = parseFloat(data.customPrice) || 0;
+        if (price < 0) {
+          await this.showTransferError('Prezzo Non Valido', 'Il prezzo non può essere negativo.');
+          return false;
+        }
+        break;
+      default:
+        price = 0;
+    }
+
+    // Verifica fondi del destinatario
+    if (price > 0 && newOwner.balance < price) {
+      await this.showTransferError(
+        'Fondi Insufficienti',
+        `${newOwner.name} non ha abbastanza denaro (${this.gameService.formatCurrency(newOwner.balance)}) per acquistare la proprietà al prezzo di ${this.gameService.formatCurrency(price)}.`
+      );
+      return false;
+    }
+
+    // Mostra conferma
+    const confirmed = await this.showSingleTransferConfirmation(ownership, newOwner, price, data.description);
+    if (!confirmed) {
+      return false;
+    }
+
+    // Esegui trasferimento
+    return await this.executeSinglePropertyTransfer(ownership, newOwner.id, price, data.description);
+  }
+  private async executeSinglePropertyTransfer(
+    ownership: PropertyOwnership,
+    newOwnerId: number,
+    price: number,
+    description: string
+  ): Promise<boolean> {
+
+    const loading = await this.loadingController.create({
+      message: 'Trasferimento proprietà...'
+    });
+    await loading.present();
+
+    try {
+      console.log('=== EXECUTING SINGLE PROPERTY TRANSFER ===');
+      console.log('Ownership ID:', ownership.id);
+      console.log('New Owner ID:', newOwnerId);
+      console.log('Price:', price);
+
+      // CORREZIONE: Usa il metodo API corretto
+      const result = await firstValueFrom(
+        this.apiService.transferProperty(ownership.id, newOwnerId, price > 0 ? price : undefined, description)
+      );
+
+      console.log('✅ Single transfer completed successfully:', result);
+
+      // Ricarica i dati
+      await this.loadOwnedProperties();
+      await this.loadCurrentPlayerProperties();
+
+      // CORREZIONE: Ottieni newOwner dalla sessione corrente
+      let newOwnerName = 'Giocatore';
+      try {
+        const session = await new Promise<any>((resolve) => {
+          this.gameService.getCurrentSession().subscribe(session => resolve(session));
+        });
+        const newOwner = session?.players?.find((p: any) => p.id === newOwnerId);
+        if (newOwner) {
+          newOwnerName = newOwner.name;
+        }
+      } catch (error) {
+        console.warn('Could not get new owner name:', error);
+      }
+
+      // Mostra successo
+      const alert = await this.alertController.create({
+        header: '✅ Trasferimento Completato',
+        message: `"${ownership.propertyName}" è stata trasferita con successo a ${newOwnerName}!`,
+        buttons: ['OK']
+      });
+      await alert.present();
+
+      return true; // Chiude il modal
+
+    } catch (error) {
+      console.error('❌ Single transfer error:', error);
+
+      let errorMessage = 'Errore durante il trasferimento.';
+      if (error.status === 400) {
+        errorMessage = error.error?.message || 'Dati non validi o fondi insufficienti.';
+      } else if (error.status === 404) {
+        errorMessage = 'Proprietà o giocatore non trovato.';
+      }
+
+      const alert = await this.alertController.create({
+        header: '❌ Errore Trasferimento',
+        message: errorMessage,
+        buttons: ['OK']
+      });
+      await alert.present();
+
+      return false; // Mantiene aperto il modal
+
+    } finally {
+      loading.dismiss();
+    }
+  }
+
+  /**
+   * NUOVO: Mostra errore trasferimento
+   */
+  private async showTransferError(header: string, message: string): Promise<void> {
+    const alert = await this.alertController.create({
+      header: `❌ ${header}`,
+      message,
+      buttons: ['OK']
+    });
+    await alert.present();
+  }
+
+
+  /**
+   * NUOVO: Conferma trasferimento singolo
+   */
+  private async showSingleTransferConfirmation(
+    ownership: PropertyOwnership,
+    newOwner: any,
+    price: number,
+    description: string
+  ): Promise<boolean> {
+    let message = `🔄 CONFERMA TRASFERIMENTO\n\n`;
+    message += `🏠 Proprietà: ${ownership.propertyName}\n`;
+    message += `📤 Da: ${this.currentPlayer?.name}\n`;
+    message += `📥 A: ${newOwner.name}\n`;
+    message += `💎 Valore proprietà: ${this.gameService.formatCurrency(ownership.propertyPrice)}\n`;
+
+    if (ownership.isMortgaged) {
+      message += `⚠️ PROPRIETÀ IPOTECATA\n`;
+      message += `💸 ${newOwner.name} dovrà pagare il 10% (${this.gameService.formatCurrency(ownership.propertyPrice * 0.1)}) per mantenere l'ipoteca\n`;
+    }
+
+    if (price > 0) {
+      message += `\n💰 Prezzo: ${this.gameService.formatCurrency(price)}`;
+    } else {
+      message += `\n🎁 Trasferimento gratuito`;
+    }
+
+    if (description && description.trim()) {
+      message += `\n\n📝 ${description}`;
+    }
+
+    return new Promise(async (resolve) => {
+      const alert = await this.alertController.create({
+        header: 'Conferma Trasferimento',
+        message,
+        buttons: [
+          {
+            text: 'Annulla',
+            handler: () => resolve(false)
+          },
+          {
+            text: 'Conferma',
+            handler: () => resolve(true)
+          }
+        ]
+      });
+      await alert.present();
+    });
   }
 
   private async executeTransferProperty(ownership: PropertyOwnership, newOwnerId: number, price?: number) {
@@ -836,7 +1123,7 @@ export class PropertiesModalComponent implements OnInit {
       'LIGHT_BLUE': 50,
       'PINK': 100,
       'ORANGE': 100,
-      'RED': 150,  
+      'RED': 150,
       'YELLOW': 150,
       'GREEN': 200,
       'DARK_BLUE': 200

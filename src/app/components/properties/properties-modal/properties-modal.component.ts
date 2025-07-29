@@ -10,6 +10,7 @@ import { ApiService } from '../../../services/api.service';
 import { GameService } from '../../../services/game.service';
 import { Player } from '../../../models/player.model';
 import { CommonModule } from '@angular/common';
+import { AuctionModalComponent } from '@/components/game/game-page/auction-modal/auction-modal.component';
 
 @Component({
   selector: 'app-properties-modal',
@@ -221,6 +222,25 @@ export class PropertiesModalComponent implements OnInit {
     }
   }
 
+  async showAuctionModal(selectedProperty: Property) {
+     const session = await new Promise<any>((resolve) => {
+          this.gameService.getCurrentSession().subscribe(session => resolve(session));
+        });
+    const modal = await this.modalController.create({
+      component: AuctionModalComponent,
+      cssClass: 'properties-modal',
+      componentProps: {
+        players: session.players,
+        property: selectedProperty // Passa la proprietà selezionata al modulo
+      }
+    });
+
+    await modal.present();
+
+    const { data } = await modal.onDidDismiss();
+  }
+
+  
   // ============================================
   // NUOVO: Metodi per la ricerca
   // ============================================

@@ -33,7 +33,8 @@
         <div>
           <h2 style="margin: 0 0 0.5rem 0; font-size: 1.5rem; font-weight: bold;">
             {{currentPlayer.name}}
-            <span *ngIf="currentPlayer.host" style="color: rgba(255,255,255,0.9); font-size: 0.8rem; margin-left: 0.5rem;">👑 HOST</span>
+            <span *ngIf="currentPlayer.host"
+              style="color: rgba(255,255,255,0.9); font-size: 0.8rem; margin-left: 0.5rem;">👑 HOST</span>
           </h2>
           <div style="font-size: 1.8rem; font-weight: bold; font-family: 'Courier New', monospace;">
             {{gameService.formatCurrency(currentPlayer.balance)}}
@@ -58,16 +59,14 @@
 
       <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); 
                   gap: 1.5rem;">
-        <div *ngFor="let player of currentSession?.players" 
-             [hidden]="player.id === currentPlayer?.id"
-             [style]="'background: white; border-radius: 20px; padding: 1.5rem; 
+        <div *ngFor="let player of currentSession?.players" [hidden]="player.id === currentPlayer?.id" [style]="'background: white; border-radius: 20px; padding: 1.5rem; 
                       display: flex; align-items: center; gap: 1rem; 
                       box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1); 
                       border-left: 6px solid ' + getPlayerColorHex(player.color) + '; 
                       transition: all 0.3s ease; cursor: pointer; position: relative; overflow: hidden;'"
-             (click)="selectPlayer(player)"
-             onmouseover="this.style.transform='translateY(-8px)'; this.style.boxShadow='0 15px 40px rgba(0, 0, 0, 0.15)';"
-             onmouseout="this.style.transform='translateY(0px)'; this.style.boxShadow='0 8px 25px rgba(0, 0, 0, 0.1)';">
+          (click)="selectPlayer(player)"
+          onmouseover="this.style.transform='translateY(-8px)'; this.style.boxShadow='0 15px 40px rgba(0, 0, 0, 0.15)';"
+          onmouseout="this.style.transform='translateY(0px)'; this.style.boxShadow='0 8px 25px rgba(0, 0, 0, 0.1)';">
 
           <!-- Background Pattern -->
           <div style="position: absolute; top: -50%; right: -20%; width: 150px; height: 150px; 
@@ -80,7 +79,7 @@
                         display: flex; align-items: center; justify-content: center; 
                         box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2); flex-shrink: 0;'">
             <ion-icon name="person-outline"
-                      style="color: white; font-size: 2rem; filter: drop-shadow(1px 1px 2px rgba(0,0,0,0.3));"></ion-icon>
+              style="color: white; font-size: 2rem; filter: drop-shadow(1px 1px 2px rgba(0,0,0,0.3));"></ion-icon>
           </div>
 
           <!-- Player Info -->
@@ -127,15 +126,12 @@
                   gap: 1rem;">
 
         <!-- Trasferimento Denaro -->
-        <button (click)="showTransferModal()" 
-                [disabled]="!currentPlayer"
-                style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+        <button (click)="showTransferModal()" [disabled]="!currentPlayer" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
                        color: white; border: none; border-radius: 15px; padding: 1.5rem; 
                        text-align: left; cursor: pointer; transition: all 0.3s ease; 
-                       box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);"
-                [style.opacity]="currentPlayer ? '1' : '0.5'"
-                onmouseover="if (this.style.opacity === '1') { this.style.transform='translateY(-5px)'; this.style.boxShadow='0 8px 25px rgba(102, 126, 234, 0.4)'; }"
-                onmouseout="this.style.transform='translateY(0px)'; this.style.boxShadow='0 4px 15px rgba(102, 126, 234, 0.3)';">
+                       box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);" [style.opacity]="currentPlayer ? '1' : '0.5'"
+          onmouseover="if (this.style.opacity === '1') { this.style.transform='translateY(-5px)'; this.style.boxShadow='0 8px 25px rgba(102, 126, 234, 0.4)'; }"
+          onmouseout="this.style.transform='translateY(0px)'; this.style.boxShadow='0 4px 15px rgba(102, 126, 234, 0.3)';">
           <div style="display: flex; align-items: center; gap: 1rem;">
             <div style="width: 50px; height: 50px; background: rgba(255,255,255,0.2); 
                         border-radius: 12px; display: flex; align-items: center; justify-content: center;">
@@ -147,83 +143,72 @@
             </div>
           </div>
         </button>
-
-        <!-- Ricevi dalla Banca -->
-        <button (click)="showBankPaymentFromBankModal()" 
-                [disabled]="!currentPlayer"
-                style="background: linear-gradient(135deg, #48bb78 0%, #38a169 100%); 
-                       color: white; border: none; border-radius: 15px; padding: 1.5rem; 
+        <div class="money-pair">
+          <!-- Ricevi dalla Banca -->
+          <button (click)="showBankPaymentFromBankModal()" [disabled]="!currentPlayer" style="background: linear-gradient(135deg, #48bb78 0%, #38a169 100%); 
+                       color: white; border: none; border-radius: 15px; padding: 1.0rem; 
                        text-align: left; cursor: pointer; transition: all 0.3s ease; 
-                       box-shadow: 0 4px 15px rgba(72, 187, 120, 0.3);"
-                [style.opacity]="currentPlayer ? '1' : '0.5'"
-                onmouseover="if (this.style.opacity === '1') { this.style.transform='translateY(-5px)'; this.style.boxShadow='0 8px 25px rgba(72, 187, 120, 0.4)'; }"
-                onmouseout="this.style.transform='translateY(0px)'; this.style.boxShadow='0 4px 15px rgba(72, 187, 120, 0.3)';">
-          <div style="display: flex; align-items: center; gap: 1rem;">
-            <div style="width: 50px; height: 50px; background: rgba(255,255,255,0.2); 
+                       box-shadow: 0 4px 15px rgba(72, 187, 120, 0.3);" [style.opacity]="currentPlayer ? '1' : '0.5'"
+            onmouseover="if (this.style.opacity === '1') { this.style.transform='translateY(-5px)'; this.style.boxShadow='0 8px 25px rgba(72, 187, 120, 0.4)'; }"
+            onmouseout="this.style.transform='translateY(0px)'; this.style.boxShadow='0 4px 15px rgba(72, 187, 120, 0.3)';">
+            <div style="display: flex; align-items: center; gap: 1rem;">
+              <div style="width: 25px; height: 25px; background: rgba(255,255,255,0.2); 
                         border-radius: 12px; display: flex; align-items: center; justify-content: center;">
-              <ion-icon name="arrow-down" style="font-size: 1.5rem;"></ion-icon>
+                <ion-icon name="arrow-down" style="font-size: 1.0rem;"></ion-icon>
+              </div>
+              <div>
+                <h4 style="margin: 0 0 0.3rem 0; font-size: 1.1rem; font-weight: bold;">Ricevi dalla Banca</h4>
+                <!-- <p style="margin: 0; font-size: 0.9rem; opacity: 0.9;">Stipendio, premi, vincite</p> -->
+              </div>
             </div>
-            <div>
-              <h4 style="margin: 0 0 0.3rem 0; font-size: 1.1rem; font-weight: bold;">Ricevi dalla Banca</h4>
-              <p style="margin: 0; font-size: 0.9rem; opacity: 0.9;">Stipendio, premi, vincite</p>
-            </div>
-          </div>
-        </button>
+          </button>
 
-        <!-- Paga alla Banca -->
-        <button (click)="showBankPaymentToBankModal()" 
-                [disabled]="!currentPlayer"
-                style="background: linear-gradient(135deg, #ed8936 0%, #dd6b20 100%); 
-                       color: white; border: none; border-radius: 15px; padding: 1.5rem; 
+          <!-- Paga alla Banca -->
+          <button (click)="showBankPaymentToBankModal()" [disabled]="!currentPlayer" style="background: linear-gradient(135deg, #ed8936 0%, #dd6b20 100%); 
+                       color: white; border: none; border-radius: 15px; padding: 1.0rem; 
                        text-align: left; cursor: pointer; transition: all 0.3s ease; 
-                       box-shadow: 0 4px 15px rgba(237, 137, 54, 0.3);"
-                [style.opacity]="currentPlayer ? '1' : '0.5'"
-                onmouseover="if (this.style.opacity === '1') { this.style.transform='translateY(-5px)'; this.style.boxShadow='0 8px 25px rgba(237, 137, 54, 0.4)'; }"
-                onmouseout="this.style.transform='translateY(0px)'; this.style.boxShadow='0 4px 15px rgba(237, 137, 54, 0.3)';">
-          <div style="display: flex; align-items: center; gap: 1rem;">
-            <div style="width: 50px; height: 50px; background: rgba(255,255,255,0.2); 
+                       box-shadow: 0 4px 15px rgba(237, 137, 54, 0.3);" [style.opacity]="currentPlayer ? '1' : '0.5'"
+            onmouseover="if (this.style.opacity === '1') { this.style.transform='translateY(-5px)'; this.style.boxShadow='0 8px 25px rgba(237, 137, 54, 0.4)'; }"
+            onmouseout="this.style.transform='translateY(0px)'; this.style.boxShadow='0 4px 15px rgba(237, 137, 54, 0.3)';">
+            <div style="display: flex; align-items: center; gap: 1rem;">
+              <div style="width: 25px; height: 25px; background: rgba(255,255,255,0.2); 
                         border-radius: 12px; display: flex; align-items: center; justify-content: center;">
-              <ion-icon name="arrow-up" style="font-size: 1.5rem;"></ion-icon>
+                <ion-icon name="arrow-up" style="font-size: 1.0rem;"></ion-icon>
+              </div>
+              <div>
+                <h4 style="margin: 0 0 0.3rem 0; font-size: 1.1rem; font-weight: bold;">Paga alla Banca</h4>
+                <!-- <p style="margin: 0; font-size: 0.9rem; opacity: 0.9;">Tasse, multe, costi</p> -->
+              </div>
             </div>
-            <div>
-              <h4 style="margin: 0 0 0.3rem 0; font-size: 1.1rem; font-weight: bold;">Paga alla Banca</h4>
-              <p style="margin: 0; font-size: 0.9rem; opacity: 0.9;">Tasse, multe, costi</p>
-            </div>
-          </div>
-        </button>
-
+          </button>
+        </div>
         <!-- Gestione Proprietà -->
-        <button (click)="showPropertiesModal()" 
-                [disabled]="!currentPlayer"
-                style="background: linear-gradient(135deg, #805ad5 0%, #6b46c1 100%); 
+        <button (click)="showPropertiesModal()" [disabled]="!currentPlayer" style="background: linear-gradient(135deg, #805ad5 0%, #6b46c1 100%); 
                        color: white; border: none; border-radius: 15px; padding: 1.5rem; 
                        text-align: left; cursor: pointer; transition: all 0.3s ease; 
-                       box-shadow: 0 4px 15px rgba(128, 90, 213, 0.3);"
-                [style.opacity]="currentPlayer ? '1' : '0.5'"
-                onmouseover="if (this.style.opacity === '1') { this.style.transform='translateY(-5px)'; this.style.boxShadow='0 8px 25px rgba(128, 90, 213, 0.4)'; }"
-                onmouseout="this.style.transform='translateY(0px)'; this.style.boxShadow='0 4px 15px rgba(128, 90, 213, 0.3)';">
+                       box-shadow: 0 4px 15px rgba(128, 90, 213, 0.3);" [style.opacity]="currentPlayer ? '1' : '0.5'"
+          onmouseover="if (this.style.opacity === '1') { this.style.transform='translateY(-5px)'; this.style.boxShadow='0 8px 25px rgba(128, 90, 213, 0.4)'; }"
+          onmouseout="this.style.transform='translateY(0px)'; this.style.boxShadow='0 4px 15px rgba(128, 90, 213, 0.3)';">
           <div style="display: flex; align-items: center; gap: 1rem;">
             <div style="width: 50px; height: 50px; background: rgba(255,255,255,0.2); 
                         border-radius: 12px; display: flex; align-items: center; justify-content: center;">
               <ion-icon name="business" style="font-size: 1.5rem;"></ion-icon>
             </div>
             <div>
-              <h4 style="margin: 0 0 0.3rem 0; font-size: 1.1rem; font-weight: bold;">Le Tue Proprietà</h4>
+              <h4 style="margin: 0 0 0.3rem 0; font-size: 1.1rem; font-weight: bold;">Gestione Proprietà</h4>
               <p style="margin: 0; font-size: 0.9rem; opacity: 0.9;">🔍 Compra, costruisci, cerca</p>
             </div>
           </div>
         </button>
 
+
         <!-- NUOVO: Pagamento Affitto Migliorato -->
-        <button (click)="showRentPaymentModal()" 
-                [disabled]="!currentPlayer"
-                style="background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%); 
+        <button (click)="showRentPaymentModal()" [disabled]="!currentPlayer" style="background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%); 
                        color: white; border: none; border-radius: 15px; padding: 1.5rem; 
                        text-align: left; cursor: pointer; transition: all 0.3s ease; 
-                       box-shadow: 0 4px 15px rgba(220, 38, 38, 0.3);"
-                [style.opacity]="currentPlayer ? '1' : '0.5'"
-                onmouseover="if (this.style.opacity === '1') { this.style.transform='translateY(-5px)'; this.style.boxShadow='0 8px 25px rgba(220, 38, 38, 0.4)'; }"
-                onmouseout="this.style.transform='translateY(0px)'; this.style.boxShadow='0 4px 15px rgba(220, 38, 38, 0.3)';">
+                       box-shadow: 0 4px 15px rgba(220, 38, 38, 0.3);" [style.opacity]="currentPlayer ? '1' : '0.5'"
+          onmouseover="if (this.style.opacity === '1') { this.style.transform='translateY(-5px)'; this.style.boxShadow='0 8px 25px rgba(220, 38, 38, 0.4)'; }"
+          onmouseout="this.style.transform='translateY(0px)'; this.style.boxShadow='0 4px 15px rgba(220, 38, 38, 0.3)';">
           <div style="display: flex; align-items: center; gap: 1rem;">
             <div style="width: 50px; height: 50px; background: rgba(255,255,255,0.2); 
                         border-radius: 12px; display: flex; align-items: center; justify-content: center;">
@@ -237,15 +222,12 @@
         </button>
 
         <!-- NUOVO: Trasferimento Multiplo Proprietà -->
-        <button (click)="showMultiPropertyTransferModal()" 
-                [disabled]="!currentPlayer"
-                style="background: linear-gradient(135deg, #059669 0%, #047857 100%); 
+        <button (click)="showMultiPropertyTransferModal()" [disabled]="!currentPlayer" style="background: linear-gradient(135deg, #059669 0%, #047857 100%); 
                        color: white; border: none; border-radius: 15px; padding: 1.5rem; 
                        text-align: left; cursor: pointer; transition: all 0.3s ease; 
-                       box-shadow: 0 4px 15px rgba(5, 150, 105, 0.3);"
-                [style.opacity]="currentPlayer ? '1' : '0.5'"
-                onmouseover="if (this.style.opacity === '1') { this.style.transform='translateY(-5px)'; this.style.boxShadow='0 8px 25px rgba(5, 150, 105, 0.4)'; }"
-                onmouseout="this.style.transform='translateY(0px)'; this.style.boxShadow='0 4px 15px rgba(5, 150, 105, 0.3)';">
+                       box-shadow: 0 4px 15px rgba(5, 150, 105, 0.3);" [style.opacity]="currentPlayer ? '1' : '0.5'"
+          onmouseover="if (this.style.opacity === '1') { this.style.transform='translateY(-5px)'; this.style.boxShadow='0 8px 25px rgba(5, 150, 105, 0.4)'; }"
+          onmouseout="this.style.transform='translateY(0px)'; this.style.boxShadow='0 4px 15px rgba(5, 150, 105, 0.3)';">
           <div style="display: flex; align-items: center; gap: 1rem;">
             <div style="width: 50px; height: 50px; background: rgba(255,255,255,0.2); 
                         border-radius: 12px; display: flex; align-items: center; justify-content: center;">
@@ -259,13 +241,12 @@
         </button>
 
         <!-- Gestione Patrimonio -->
-        <button (click)="showWealthManagementModal()" 
-                style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); 
+        <button (click)="showWealthManagementModal()" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); 
                        color: white; border: none; border-radius: 15px; padding: 1.5rem; 
                        text-align: left; cursor: pointer; transition: all 0.3s ease; 
                        box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);"
-                onmouseover="this.style.transform='translateY(-5px)'; this.style.boxShadow='0 8px 25px rgba(16, 185, 129, 0.4)';"
-                onmouseout="this.style.transform='translateY(0px)'; this.style.boxShadow='0 4px 15px rgba(16, 185, 129, 0.3)';">
+          onmouseover="this.style.transform='translateY(-5px)'; this.style.boxShadow='0 8px 25px rgba(16, 185, 129, 0.4)';"
+          onmouseout="this.style.transform='translateY(0px)'; this.style.boxShadow='0 4px 15px rgba(16, 185, 129, 0.3)';">
           <div style="display: flex; align-items: center; gap: 1rem;">
             <div style="width: 50px; height: 50px; background: rgba(255,255,255,0.2); 
                         border-radius: 12px; display: flex; align-items: center; justify-content: center;">
@@ -305,12 +286,10 @@
           </h3>
         </div>
 
-        <button (click)="refreshTransactions()" 
-                style="background: #e2e8f0; color: #4a5568; border: none; border-radius: 10px; 
+        <button (click)="refreshTransactions()" style="background: #e2e8f0; color: #4a5568; border: none; border-radius: 10px; 
                        padding: 0.5rem 1rem; cursor: pointer; transition: all 0.2s ease; 
-                       display: flex; align-items: center; gap: 0.5rem;" 
-                onmouseover="this.style.background='#cbd5e0';"
-                onmouseout="this.style.background='#e2e8f0';">
+                       display: flex; align-items: center; gap: 0.5rem;" onmouseover="this.style.background='#cbd5e0';"
+          onmouseout="this.style.background='#e2e8f0';">
           <ion-icon name="refresh" style="font-size: 1rem;"></ion-icon>
           <span style="font-size: 0.9rem; font-weight: 500;">Aggiorna</span>
         </button>
@@ -321,27 +300,25 @@
 
         <!-- Empty State -->
         <div *ngIf="!recentTransactions || recentTransactions.length === 0"
-             style="text-align: center; padding: 3rem 1rem; color: #4a5568;">
+          style="text-align: center; padding: 3rem 1rem; color: #4a5568;">
           <ion-icon name="receipt-outline"
-                    style="font-size: 4rem; opacity: 0.3; margin-bottom: 1rem; display: block;"></ion-icon>
+            style="font-size: 4rem; opacity: 0.3; margin-bottom: 1rem; display: block;"></ion-icon>
           <h4 style="margin: 0 0 0.5rem 0; font-size: 1.2rem;">Nessuna transazione</h4>
           <p style="margin: 0; opacity: 0.7;">Le transazioni di gioco appariranno qui</p>
         </div>
 
         <!-- Transactions List -->
         <div *ngIf="recentTransactions && recentTransactions.length > 0">
-          <div *ngFor="let transaction of recentTransactions; let i = index" 
-               [style]="'padding: 1rem; border-radius: 12px; border-left: 4px solid ' + getTransactionColor(transaction) + '; 
+          <div *ngFor="let transaction of recentTransactions; let i = index" [style]="'padding: 1rem; border-radius: 12px; border-left: 4px solid ' + getTransactionColor(transaction) + '; 
                         background: ' + getTransactionBg(transaction) + '; margin-bottom: 1rem; 
                         transition: all 0.2s ease; cursor: pointer;'"
-               onmouseover="this.style.transform='translateX(5px)'" 
-               onmouseout="this.style.transform='translateX(0px)'">
+            onmouseover="this.style.transform='translateX(5px)'" onmouseout="this.style.transform='translateX(0px)'">
 
             <div style="display: flex; justify-content: between; align-items: start; gap: 1rem;">
               <div style="flex: 1;">
                 <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;">
                   <ion-icon [name]="getTransactionIcon(transaction)"
-                            [style]="'font-size: 1.2rem; color: ' + getTransactionColor(transaction)"></ion-icon>
+                    [style]="'font-size: 1.2rem; color: ' + getTransactionColor(transaction)"></ion-icon>
                   <h5 style="margin: 0; font-size: 1rem; font-weight: bold; color: #2d3748;">
                     {{transaction.description}}
                   </h5>
@@ -360,8 +337,7 @@
               </div>
 
               <div [style]="'font-weight: bold; font-size: 1.2rem; font-family: Courier New, monospace; color: ' 
-                           + getAmountColor(transaction)" 
-                   class="transaction-amount">
+                           + getAmountColor(transaction)" class="transaction-amount">
                 {{gameService.formatCurrency(transaction.amount)}}
               </div>
             </div>
@@ -375,9 +351,12 @@
 
 <style>
   @keyframes pulse {
-    0%, 100% {
+
+    0%,
+    100% {
       opacity: 1;
     }
+
     50% {
       opacity: 0.7;
     }

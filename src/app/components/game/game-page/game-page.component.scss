@@ -221,3 +221,24 @@ input:focus-visible {
     border: 1px solid #ccc;
   }
 }
+
+.button-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 1rem;
+}
+
+.money-pair {
+  /* tiene i due pulsanti uno accanto all’altro */
+  display: flex;          /* oppure: display:grid; grid-template-columns:1fr 1fr; */
+  gap: 1rem;
+
+  /* occupa almeno due colonne della griglia padre
+     (1 / -1 li fa estendere per tutta la riga;
+      se preferisci solo due colonne: grid-column: span 2;) */
+  grid-column: 1 / -1;
+}
+
+.money-pair button {
+  flex: 1 1 0;             /* larghezza identica per entrambi */
+}

@@ -201,6 +201,21 @@
               <span *ngIf="!currentPlayer || currentPlayer.balance < property.price">Fondi Insufficienti</span>
             </button>
 
+            <!-- Auction Button -->
+            <button (click)="showAuctionModal(property)"
+                    [disabled]="!currentPlayer || currentPlayer.balance < property.price"
+                    [style]="'width: 100%; border: none; border-radius: 12px; padding: 1rem; 
+                             font-weight: bold; font-size: 1rem; cursor: pointer; 
+                             transition: all 0.3s ease; ' +
+                             (currentPlayer && currentPlayer.balance >= property.price ? 
+                              'background: linear-gradient(135deg, #48bb78 0%, #38a169 100%); color: white; box-shadow: 0 4px 15px rgba(72, 187, 120, 0.3);' : 
+                              'background: #e2e8f0; color: #a0aec0; cursor: not-allowed;')"
+                    onmouseover="if (!this.disabled) { this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 20px rgba(72, 187, 120, 0.4)'; }"
+                    onmouseout="if (!this.disabled) { this.style.transform='translateY(0px)'; this.style.boxShadow='0 4px 15px rgba(72, 187, 120, 0.3)'; }">
+              <ion-icon name="card" style="margin-right: 0.5rem;"></ion-icon>
+              <span >ASTA</span>
+            </button>
+
             <!-- Affordability indicator -->
             <div *ngIf="currentPlayer && currentPlayer.balance < property.price" 
                  style="margin-top: 0.8rem; text-align: center; font-size: 0.8rem; color: #e53e3e;">

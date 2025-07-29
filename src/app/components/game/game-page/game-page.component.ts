@@ -14,6 +14,7 @@ import { ApiService } from '../../../services/api.service';
 import { GameSession } from '../../../models/game-session.model';
 import { PropertiesModalComponent } from '../../properties/properties-modal/properties-modal.component';
 import { WealthManagementModalComponent } from './wealth-management-modal/wealth-management-modal.component';
+import { AuctionModalComponent } from './auction-modal/auction-modal.component';
 
 @Component({
   selector: 'app-game',
@@ -886,6 +887,8 @@ export class GamePageComponent implements OnInit, OnDestroy {
       this.loadGameData();
     }
   }
+
+
 
   // ============================================
   // NUOVO: Modal per trasferimento multiplo proprietà

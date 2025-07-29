@@ -1,7 +1,7 @@
 
 
 import { Component, OnInit, OnDestroy } from '@angular/core';
-import { ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { AlertController, ModalController, ActionSheetController, LoadingController } from '@ionic/angular';
 import { Subscription } from 'rxjs';
 import { firstValueFrom } from 'rxjs';
@@ -36,14 +36,15 @@ export class GamePageComponent implements OnInit, OnDestroy {
     private loadingController: LoadingController,
     private apiService: ApiService,
     public gameService: GameService,
+    private router: Router,
     private webSocketService: WebSocketService
-  ) {}
+  ) { }
 
   ngOnInit() {
     this.sessionCode = this.route.snapshot.paramMap.get('sessionCode') || '';
     console.log('=== GAME PAGE INIT ===');
     console.log('Session code:', this.sessionCode);
-    
+
     if (this.sessionCode) {
       this.initializeGamePage();
     }
@@ -54,17 +55,50 @@ export class GamePageComponent implements OnInit, OnDestroy {
   }
 
   async initializeGamePage() {
-    console.log('=== INITIALIZING GAME PAGE ===');
-    
+    console.log('=== INITIALIZING GAME PAGE (IMPROVED) ===');
+
     // Subscribe to game service observables
     this.subscribeToGameService();
-    
+
     // Load initial data
     await this.loadGameData();
-    
+
+    // Setup WebSocket con retry logic
+    this.setupWebSocketWithRetry();
+
+    // AGGIUNTO: Controllo periodico connessione WebSocket
+    setInterval(() => {
+      this.checkWebSocketConnection();
+    }, 30000); // Controlla ogni 30 secondi
+  }
+
+  private setupWebSocketWithRetry() {
+    if (!this.sessionCode) return;
+
+    console.log('🔌 Setting up WebSocket with retry logic');
+
     // Setup WebSocket
     this.setupWebSocket();
+
+    // Subscribe to connection status
+    this.subscriptions.push(
+      this.webSocketService.getConnectionStatus().subscribe((connected) => {
+        console.log('🔌 WebSocket status changed:', connected ? 'CONNECTED' : 'DISCONNECTED');
+
+        if (!connected) {
+          // Prova a riconnettersi dopo 5 secondi
+          setTimeout(() => {
+            if (!this.webSocketService.isConnected()) {
+              console.log('🔄 Attempting WebSocket reconnection...');
+              this.webSocketService.connect(this.sessionCode);
+            }
+          }, 5000);
+        }
+      })
+    );
   }
+
+
 
   subscribeToGameService() {
     // Subscribe to current session changes
@@ -89,7 +123,7 @@ export class GamePageComponent implements OnInit, OnDestroy {
   async loadGameData() {
     try {
       console.log('=== LOADING GAME DATA ===');
-      
+
       // Load session data
       const session = await firstValueFrom(this.apiService.getSession(this.sessionCode));
       if (session) {
@@ -110,10 +144,10 @@ export class GamePageComponent implements OnInit, OnDestroy {
 
   setupWebSocket() {
     if (!this.sessionCode) return;
-    
+
     console.log('=== SETTING UP WEBSOCKET FOR GAME ===');
     this.webSocketService.connect(this.sessionCode);
-    
+
     this.subscriptions.push(
       this.webSocketService.getMessages().subscribe((message) => {
         if (message) {
@@ -125,27 +159,125 @@ export class GamePageComponent implements OnInit, OnDestroy {
   }
 
   handleWebSocketMessage(message: any) {
+    console.log('📨 WebSocket message received in game:', message);
+
     switch (message.type) {
       case 'BALANCE_UPDATE':
-        console.log('Balance updated, reloading data');
-        this.loadGameData();
-        this.syncCurrentPlayerData(); // AGGIUNTO: Sincronizza current player
+        console.log('💰 Balance updated, reloading data');
+        this.handleBalanceUpdate(message.data);
         break;
+
       case 'PROPERTY_PURCHASED':
-        console.log('Property purchased, refreshing transactions');
+      case 'PROPERTY_UPDATE':
+        console.log('🏠 Property updated, refreshing data');
+        this.loadGameData();
+        this.syncCurrentPlayerData();
         this.refreshTransactions();
-        this.syncCurrentPlayerData(); // AGGIUNTO: Sincronizza current player
         break;
+
+      case 'TRANSACTION_UPDATE':
+        console.log('💳 Transaction updated, refreshing transactions');
+        this.refreshTransactions();
+        this.syncCurrentPlayerData();
+        break;
+
+      case 'SESSION_UPDATE':
+        console.log('🔄 Session updated, refreshing all data');
+        this.loadGameData();
+        break;
+
       case 'GAME_ENDED':
-        // Handle game end
+        console.log('🏁 Game ended');
+        this.showToast('La partita è terminata', 'warning');
+        this.router.navigate(['/home']);
         break;
+
+      case 'PLAYER_BANKRUPT':
+        console.log('💔 Player bankruptcy');
+        this.showToast(`${message.data.bankruptPlayer} è in bancarotta!`, 'warning');
+        this.loadGameData();
+        break;
+
+      default:
+        console.log('❓ Unknown message type in game:', message.type);
     }
   }
+
+  private handleBalanceUpdate(data: any) {
+    console.log('💰 Handling balance update:', data);
+
+    try {
+      // Aggiorna i dati della sessione
+      this.loadGameData();
+
+      // Aggiorna le transazioni
+      this.refreshTransactions();
+
+      // Sincronizza il current player
+      this.syncCurrentPlayerData();
+
+      // AGGIUNTO: Mostra notifica se il current player è coinvolto
+      if (data.type) {
+        let message = '';
+        switch (data.type) {
+          case 'PLAYER_TO_PLAYER_TRANSFER':
+            if (data.fromPlayer?.id === this.currentPlayer?.id || data.toPlayer?.id === this.currentPlayer?.id) {
+              const amount = this.gameService.formatCurrency(data.transaction?.amount || 0);
+              message = `Trasferimento di ${amount} completato`;
+            }
+            break;
+          case 'PLAYER_TO_BANK_PAYMENT':
+            if (data.player?.id === this.currentPlayer?.id) {
+              const amount = this.gameService.formatCurrency(data.transaction?.amount || 0);
+              message = `Pagamento di ${amount} alla Banca completato`;
+            }
+            break;
+          case 'BANK_TO_PLAYER_PAYMENT':
+            if (data.player?.id === this.currentPlayer?.id) {
+              const amount = this.gameService.formatCurrency(data.transaction?.amount || 0);
+              message = `Ricevuto ${amount} dalla Banca`;
+            }
+            break;
+        }
+
+        if (message) {
+          this.showToast(message, 'success');
+        }
+      }
+    } catch (error) {
+      console.error('❌ Error handling balance update:', error);
+    }
+  }
+
+  // AGGIUNTO: Metodo per mostrare toast notifications (aggiungere ToastController se necessario)
+  private async showToast(message: string, color: 'success' | 'warning' | 'danger' = 'success') {
+    console.log(`🔔 ${color.toUpperCase()}: ${message}`);
+
+    // Opzionale: Se vuoi aggiungere ToastController
+    /*
+    const toast = await this.toastController.create({
+      message,
+      duration: 3000,
+      color,
+      position: 'top'
+    });
+    await toast.present();
+    */
+  }
+
+  // AGGIUNTO: Metodo per controllare la connessione WebSocket
+  private checkWebSocketConnection() {
+    if (!this.webSocketService.isConnected()) {
+      console.log('⚠️ WebSocket disconnesso, tentativo riconnessione...');
+      this.webSocketService.forceReconnect();
+    }
+  }
+
 
   // NUOVO: Metodo per sincronizzare i dati del current player con la sessione aggiornata
   private syncCurrentPlayerData() {
     if (!this.currentPlayer || !this.currentSession) return;
-    
+
     // Trova il player aggiornato nella sessione corrente
     const updatedPlayer = this.currentSession.players.find(p => p.id === this.currentPlayer!.id);
     if (updatedPlayer) {
@@ -238,7 +370,7 @@ export class GamePageComponent implements OnInit, OnDestroy {
     try {
       const properties = await firstValueFrom(this.apiService.getPlayerProperties(owner.id));
       const propertiesList = properties || [];
-      
+
       // Filtra solo proprietà non ipotecate
       const rentableProperties = propertiesList.filter(prop => !prop.isMortgaged);
 
@@ -271,19 +403,12 @@ export class GamePageComponent implements OnInit, OnDestroy {
 
   // NUOVO: Modal con ricerca per proprietà affittabili
   private async showRentablePropertiesModal(owner: Player, properties: PropertyOwnership[]) {
+    // CORREZIONE: Rimosso cssClass problematico e semplificato
     const alert = await this.alertController.create({
       header: `Proprietà di ${owner.name}`,
       message: 'Seleziona la proprietà per pagare l\'affitto',
-      cssClass: 'rent-properties-modal',
+      // RIMOSSO: cssClass: 'rent-properties-modal',  // Questa classe causava problemi
       inputs: [
-        {
-          name: 'searchTerm',
-          type: 'text',
-          placeholder: '🔍 Cerca proprietà...',
-          attributes: {
-            style: 'margin-bottom: 1rem; padding: 0.8rem; border: 2px solid #e2e8f0; border-radius: 8px;'
-          }
-        },
         {
           name: 'selectedProperty',
           type: 'radio',
@@ -307,10 +432,7 @@ export class GamePageComponent implements OnInit, OnDestroy {
           placeholder: 'Risultato dadi (per società)',
           value: 7,
           min: 2,
-          max: 12,
-          attributes: {
-            style: 'margin-top: 1rem; padding: 0.8rem; border: 2px solid #e2e8f0; border-radius: 8px;'
-          }
+          max: 12
         }
       ],
       buttons: [
@@ -335,16 +457,15 @@ export class GamePageComponent implements OnInit, OnDestroy {
     });
     await alert.present();
   }
-
   // Utility per calcolare affitto da mostrare
-  private calculateDisplayRent(property: PropertyOwnership): {rent: number, description: string} {
+  private calculateDisplayRent(property: PropertyOwnership): { rent: number, description: string } {
     if (property.propertyType === 'UTILITY') {
       return {
         rent: 7 * 4, // Esempio con dadi 7
         description: '(con dadi 7)'
       };
     }
-    
+
     let description = '';
     if (property.hasHotel) {
       description = '(Hotel)';
@@ -353,7 +474,7 @@ export class GamePageComponent implements OnInit, OnDestroy {
     } else {
       description = '(base)';
     }
-    
+
     return {
       rent: property.currentRent,
       description
@@ -370,14 +491,14 @@ export class GamePageComponent implements OnInit, OnDestroy {
       const transaction = await firstValueFrom(
         this.apiService.payRent(property.propertyId, this.currentPlayer!.id, diceRoll)
       );
-      
+
       const alert = await this.alertController.create({
         header: 'Affitto Pagato',
         message: `Hai pagato ${this.gameService.formatCurrency(transaction.amount)} per "${property.propertyName}"`,
         buttons: ['OK']
       });
       await alert.present();
-      
+
     } catch (error) {
       console.error('Rent payment error:', error);
       const alert = await this.alertController.create({
@@ -499,7 +620,7 @@ export class GamePageComponent implements OnInit, OnDestroy {
     try {
       console.log('=== PERFORMING TRANSFER ===');
       console.log('From:', fromPlayerId, 'To:', toPlayerId, 'Amount:', amount);
-      
+
       await firstValueFrom(this.apiService.transferMoney(fromPlayerId, toPlayerId, amount, description));
       console.log('Transfer completed successfully');
     } catch (error) {
@@ -620,7 +741,7 @@ export class GamePageComponent implements OnInit, OnDestroy {
     try {
       console.log('=== PERFORMING BANK PAYMENT ===');
       console.log('Player:', playerId, 'Amount:', amount, 'From bank:', isFromBank);
-      
+
       if (isFromBank) {
         await firstValueFrom(this.apiService.payFromBank(playerId, amount, description));
       } else {
@@ -652,9 +773,9 @@ export class GamePageComponent implements OnInit, OnDestroy {
         currentPlayerOnly: true // Passa parametro per limitare alle azioni del giocatore corrente
       }
     });
-    
+
     await modal.present();
-    
+
     const { data } = await modal.onDidDismiss();
     if (data?.refresh) {
       console.log('Refreshing game data after properties modal');
@@ -748,7 +869,7 @@ export class GamePageComponent implements OnInit, OnDestroy {
           value: `${player.id}`,
           checked: false
         })),
-        
+
         // Separatore
         {
           name: 'separator1',
@@ -850,7 +971,7 @@ export class GamePageComponent implements OnInit, OnDestroy {
       confirmMessage += `• ${p.propertyName} (${this.gameService.formatCurrency(p.propertyPrice)})\n`;
     });
     confirmMessage += `\nValore totale proprietà: ${this.gameService.formatCurrency(totalValue)}\n`;
-    
+
     if (transferAmount > 0) {
       confirmMessage += `Riceverai: ${this.gameService.formatCurrency(transferAmount)}\n`;
     } else if (transferAmount < 0) {
@@ -877,8 +998,8 @@ export class GamePageComponent implements OnInit, OnDestroy {
   }
 
   private async performMultiPropertyTransfer(
-    properties: PropertyOwnership[], 
-    recipientId: number, 
+    properties: PropertyOwnership[],
+    recipientId: number,
     transferAmount: number,
     description: string
   ) {
@@ -889,7 +1010,7 @@ export class GamePageComponent implements OnInit, OnDestroy {
 
     try {
       console.log('=== PERFORMING MULTI PROPERTY TRANSFER ===');
-      
+
       // 1. Trasferisci tutte le proprietà
       for (const property of properties) {
         await firstValueFrom(this.apiService.transferProperty(property.id, recipientId, 0));
@@ -900,17 +1021,17 @@ export class GamePageComponent implements OnInit, OnDestroy {
         if (transferAmount > 0) {
           // Il current player riceve denaro dal destinatario
           await firstValueFrom(this.apiService.transferMoney(
-            recipientId, 
-            this.currentPlayer!.id, 
-            transferAmount, 
+            recipientId,
+            this.currentPlayer!.id,
+            transferAmount,
             `Compenso per ${description}`
           ));
         } else {
           // Il current player paga denaro al destinatario
           await firstValueFrom(this.apiService.transferMoney(
-            this.currentPlayer!.id, 
-            recipientId, 
-            Math.abs(transferAmount), 
+            this.currentPlayer!.id,
+            recipientId,
+            Math.abs(transferAmount),
             `Pagamento per ${description}`
           ));
         }
@@ -972,7 +1093,7 @@ export class GamePageComponent implements OnInit, OnDestroy {
         const properties = await firstValueFrom(this.apiService.getPlayerProperties(player.id));
         const propertiesList = properties || [];
         overviewText += `\n${player.name} (${propertiesList.length} proprietà):\n`;
-        
+
         if (propertiesList.length === 0) {
           overviewText += '  - Nessuna proprietà\n';
         } else {
@@ -981,7 +1102,7 @@ export class GamePageComponent implements OnInit, OnDestroy {
             if (prop.isMortgaged) status += ' [IPOTECATA]';
             if (prop.hasHotel) status += ' [HOTEL]';
             else if (prop.houses > 0) status += ` [${prop.houses} CASE]`;
-            
+
             overviewText += `  - ${prop.propertyName}${status}\n`;
           });
         }
@@ -1006,19 +1127,19 @@ export class GamePageComponent implements OnInit, OnDestroy {
     try {
       const allTransactions = await firstValueFrom(this.apiService.getTransactions(this.sessionCode));
       const transactionsList = allTransactions || [];
-      
+
       let stats = 'STATISTICHE PARTITA\n\n';
-      
+
       // Player statistics
       this.currentSession.players.forEach(player => {
-        const playerTransactions = transactionsList.filter(t => 
+        const playerTransactions = transactionsList.filter(t =>
           t.fromPlayerName === player.name || t.toPlayerName === player.name
         );
-        
+
         const received = transactionsList
           .filter(t => t.toPlayerName === player.name)
           .reduce((sum, t) => sum + t.amount, 0);
-          
+
         const paid = transactionsList
           .filter(t => t.fromPlayerName === player.name)
           .reduce((sum, t) => sum + t.amount, 0);
@@ -1034,7 +1155,7 @@ export class GamePageComponent implements OnInit, OnDestroy {
       // Game statistics
       const totalTransactions = transactionsList.length;
       const totalMoney = transactionsList.reduce((sum, t) => sum + t.amount, 0);
-      
+
       stats += `TOTALI:\n`;
       stats += `Transazioni: ${totalTransactions}\n`;
       stats += `Volume scambi: ${this.gameService.formatCurrency(totalMoney)}\n`;
@@ -1087,10 +1208,10 @@ export class GamePageComponent implements OnInit, OnDestroy {
               try {
                 const properties = await firstValueFrom(this.apiService.getAllProperties());
                 const propertiesList = properties || [];
-                const property = propertiesList.find(p => 
+                const property = propertiesList.find(p =>
                   p.name.toLowerCase().includes(data.propertyName.toLowerCase())
                 );
-                
+
                 if (property) {
                   const rent = await firstValueFrom(this.apiService.calculateRent(property.id, data.diceRoll || 7));
                   const rentAlert = await this.alertController.create({
@@ -1124,9 +1245,9 @@ export class GamePageComponent implements OnInit, OnDestroy {
       component: WealthManagementModalComponent,
       cssClass: 'wealth-modal'
     });
-    
+
     await modal.present();
-    
+
     const { data } = await modal.onDidDismiss();
     if (data?.refresh) {
       console.log('Refreshing game data after wealth management modal');

@@ -8,13 +8,14 @@ import { GameSession } from '../models/game-session.model';
 import { PlayerColor } from '../models/player.model';
 import { Transaction } from '../models/transaction.model';
 import { Property, PropertyOwnership } from '../models/property.model';
+import { environment } from 'src/environment';
 
 @Injectable({
   providedIn: 'root'
 })
 export class ApiService {
   // private readonly baseUrl = 'http://localhost:8080/api';
-    private readonly baseUrl = 'http://192.168.1.64:8080/api';
+    private readonly baseUrl = environment.api_url +'api';
 
   constructor(private http: HttpClient) {}
 

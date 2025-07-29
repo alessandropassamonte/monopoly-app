@@ -29,13 +29,13 @@ export class LobbyPageComponent implements OnInit, OnDestroy {
     private apiService: ApiService,
     public gameService: GameService,
     private webSocketService: WebSocketService
-  ) {}
+  ) { }
 
   ngOnInit() {
     this.sessionCode = this.route.snapshot.paramMap.get('sessionCode') || '';
     console.log('=== LOBBY INIT ===');
     console.log('Session code from route:', this.sessionCode);
-    
+
     if (this.sessionCode) {
       this.initializeLobby();
     }
@@ -48,16 +48,16 @@ export class LobbyPageComponent implements OnInit, OnDestroy {
 
   async initializeLobby() {
     console.log('=== INITIALIZING LOBBY ===');
-    
+
     // Prima sottoscrivi ai servizi
     this.subscribeToGameService();
-    
+
     // Poi carica/verifica la sessione (SENZA subscription annidate)
     await this.loadAndVerifySession();
-    
+
     // Setup WebSocket
     this.setupWebSocket();
-    
+
     // Debug finale
     this.debugCurrentState();
   }
@@ -69,10 +69,10 @@ export class LobbyPageComponent implements OnInit, OnDestroy {
         console.log('=== PLAYER CHANGE ===');
         console.log('New current player:', player);
         console.log('Player isHost:', player?.host);
-        
+
         this.currentPlayer = player;
         this.isHost = player?.host || false;
-        
+
         console.log('Component isHost set to:', this.isHost);
       })
     );
@@ -89,38 +89,38 @@ export class LobbyPageComponent implements OnInit, OnDestroy {
 
   async loadAndVerifySession() {
     console.log('=== LOADING SESSION ===');
-    
+
     try {
       // Carica sempre la sessione dal server per avere dati freschi
       console.log('Loading session from API:', this.sessionCode);
       const session = await firstValueFrom(this.apiService.getSession(this.sessionCode));
-      
+
       if (!session) {
         console.error('Session not found on server');
         this.goBack();
         return;
       }
-      
+
       console.log('Session loaded from API:', session);
       console.log('Session players:', session.players);
-      
+
       // Aggiorna la sessione nel service
       this.gameService.setCurrentSession(session);
-      
+
       // CORREZIONE: Verifica player con take(1) per evitare loop
       const currentPlayer = await firstValueFrom(
         this.gameService.getCurrentPlayer().pipe(take(1))
       );
-      
+
       console.log('Current player from service:', currentPlayer);
-      
+
       if (currentPlayer) {
         // Verifica che il player esista ancora nella sessione aggiornata
         const playerStillInSession = session.players.find(p => p.id === currentPlayer.id);
-        
+
         if (playerStillInSession) {
           console.log('Existing player still valid, updating with fresh data:', playerStillInSession);
-          
+
           // Solo aggiorna se i dati sono effettivamente cambiati
           if (this.playerDataChanged(currentPlayer, playerStillInSession)) {
             console.log('Player data changed, updating...');
@@ -137,7 +137,7 @@ export class LobbyPageComponent implements OnInit, OnDestroy {
         console.log('No existing player, checking if auto-detection is possible');
         this.showPlayerSelectionIfNeeded(session);
       }
-      
+
     } catch (error) {
       console.error('Error loading session:', error);
       this.goBack();
@@ -147,8 +147,8 @@ export class LobbyPageComponent implements OnInit, OnDestroy {
   // Utility per verificare se i dati del player sono cambiati
   private playerDataChanged(oldPlayer: Player, newPlayer: Player): boolean {
     return oldPlayer.balance !== newPlayer.balance ||
-           oldPlayer.propertiesCount !== newPlayer.propertiesCount ||
-           oldPlayer.host !== newPlayer.host;
+      oldPlayer.propertiesCount !== newPlayer.propertiesCount ||
+      oldPlayer.host !== newPlayer.host;
   }
 
   private async showPlayerSelectionIfNeeded(session: GameSession) {
@@ -159,17 +159,17 @@ export class LobbyPageComponent implements OnInit, OnDestroy {
       this.gameService.setCurrentPlayer(singlePlayer);
       return;
     }
-    
+
     // Altrimenti mostra selezione manuale
     console.log('Multiple players found, manual selection available via UI');
   }
 
   setupWebSocket() {
     if (!this.sessionCode) return;
-    
+
     console.log('=== SETTING UP WEBSOCKET ===');
     this.webSocketService.connect(this.sessionCode);
-    
+
     this.subscriptions.push(
       this.webSocketService.getMessages().subscribe((message) => {
         if (message) {
@@ -181,15 +181,18 @@ export class LobbyPageComponent implements OnInit, OnDestroy {
   }
 
   handleWebSocketMessage(message: any) {
-    console.log('WebSocket message received:', message);
-    
+    console.log('📨 WebSocket message received in lobby:', message);
+
     switch (message.type) {
       case 'PLAYER_JOINED':
-        console.log('Player joined, refreshing session');
+        console.log('👤 Player joined, refreshing session');
         this.refreshSessionData();
+        // AGGIUNTO: Mostra notifica
+        this.showToast(`${message.data.name} si è unito alla partita`, 'success');
         break;
+
       case 'GAME_STARTED':
-        console.log('Game started, refreshing and potentially navigating');
+        console.log('🎮 Game started, refreshing and potentially navigating');
         this.refreshSessionData();
         setTimeout(() => {
           if (this.currentSession?.status === 'IN_PROGRESS') {
@@ -197,31 +200,74 @@ export class LobbyPageComponent implements OnInit, OnDestroy {
           }
         }, 1000);
         break;
+
       case 'GAME_ENDED':
+        console.log('🏁 Game ended, returning to home');
+        this.showToast('La partita è terminata', 'warning');
         this.goBack();
         break;
+
+      case 'SESSION_UPDATE':
+        console.log('🔄 Session update received');
+        this.refreshSessionData();
+        break;
+
+      // AGGIUNTO: Gestione nuovi tipi di messaggio
+      case 'BALANCE_UPDATE':
+        console.log('💰 Balance update received in lobby');
+        this.refreshSessionData();
+        break;
+
+      default:
+        console.log('❓ Unknown message type:', message.type);
     }
   }
 
-  // Metodo separato per refresh senza loop
+  // AGGIUNTO: Metodo per mostrare toast notifications
+  private async showToast(message: string, color: 'success' | 'warning' | 'danger' | 'primary' = 'primary') {
+    // Se hai ToastController disponibile, altrimenti usa console
+    console.log(`🔔 ${color.toUpperCase()}: ${message}`);
+
+    // Opzionale: Se vuoi aggiungere ToastController
+    /*
+    const toast = await this.toastController.create({
+      message,
+      duration: 3000,
+      color,
+      position: 'top'
+    });
+    await toast.present();
+    */
+  }
+
+  // CORREZIONE: Metodo refreshSessionData migliorato
   private async refreshSessionData() {
     try {
+      console.log('🔄 Refreshing session data...');
       const session = await firstValueFrom(this.apiService.getSession(this.sessionCode));
       if (session) {
-        console.log('Session refreshed via WebSocket');
+        console.log('✅ Session refreshed via WebSocket:', session.players?.length, 'players');
         this.gameService.setCurrentSession(session);
-        
-        // Aggiorna anche il current player se necessario
+
+        // AGGIUNTO: Aggiorna anche il current player se necessario
         const currentPlayer = this.currentPlayer;
         if (currentPlayer) {
           const updatedPlayer = session.players.find(p => p.id === currentPlayer.id);
           if (updatedPlayer && this.playerDataChanged(currentPlayer, updatedPlayer)) {
+            console.log('👤 Updating current player data');
             this.gameService.setCurrentPlayer(updatedPlayer);
           }
         }
       }
     } catch (error) {
-      console.error('Error refreshing session data:', error);
+      console.error('❌ Error refreshing session data:', error);
+
+      // AGGIUNTO: Se l'errore è 404, la sessione potrebbe essere stata eliminata
+      if (error.status === 404) {
+        console.log('🔍 Session not found, returning to home');
+        this.showToast('La sessione non esiste più', 'danger');
+        this.goBack();
+      }
     }
   }
 
@@ -229,7 +275,7 @@ export class LobbyPageComponent implements OnInit, OnDestroy {
     console.log('=== START GAME ATTEMPT ===');
     console.log('Current player:', this.currentPlayer);
     console.log('Is host:', this.isHost);
-    
+
     if (!this.currentPlayer) {
       console.error('Cannot start game - no current player');
       const alert = await this.alertController.create({
@@ -336,9 +382,9 @@ export class LobbyPageComponent implements OnInit, OnDestroy {
     console.log('=== MANUAL PLAYER SELECTION ===');
     console.log('Manually setting current player to:', player);
     console.log('Player isHost flag:', player.host);
-    
+
     this.gameService.setCurrentPlayer(player);
-    
+
     // Salva anche nel localStorage per persistenza
     localStorage.setItem('monopoly_manual_selection', 'true');
     localStorage.setItem('monopoly_selected_player_id', player.id.toString());
@@ -352,7 +398,7 @@ export class LobbyPageComponent implements OnInit, OnDestroy {
     console.log('Current player:', this.currentPlayer);
     console.log('Is host:', this.isHost);
     console.log('Players in session:', this.currentSession?.players);
-    
+
     // Debug localStorage
     console.log('=== LOCALSTORAGE DEBUG ===');
     console.log('monopoly_current_player:', localStorage.getItem('monopoly_current_player'));

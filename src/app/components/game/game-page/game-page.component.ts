@@ -2,7 +2,7 @@
 
 import { Component, OnInit, OnDestroy } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
-import { AlertController, ModalController, ActionSheetController, LoadingController } from '@ionic/angular';
+import { AlertController, ModalController, ActionSheetController, LoadingController, ToastController } from '@ionic/angular';
 import { Subscription } from 'rxjs';
 import { firstValueFrom } from 'rxjs';
 import { Transaction } from '../../../models/transaction.model';
@@ -39,6 +39,7 @@ export class GamePageComponent implements OnInit, OnDestroy {
       private apiService: ApiService,
       public gameService: GameService,
       private router: Router,
+         private toastController: ToastController,
       private webSocketService: WebSocketService
    ) { }
 
@@ -104,10 +105,10 @@ export class GamePageComponent implements OnInit, OnDestroy {
       this.loadCurrentPlayerProperties()
       console.log('KKKKKKKKKKKKKKKKKKKKKK');
       try {
-         
+
          const playerProperties = await firstValueFrom(this.apiService.getPlayerProperties(this.currentPlayer.id));
-         
-         
+
+
          console.log('=== SHOWING UNIFIED TRADE MODAL ===', playerProperties);
          if (!this.currentPlayer) {
             await this.presentError('Giocatore non identificato');
@@ -262,6 +263,30 @@ export class GamePageComponent implements OnInit, OnDestroy {
       );
    }
 
+   private async showToast(message: string, color: 'success' | 'warning' | 'danger' = 'success') {
+   console.log(`🔔 ${color.toUpperCase()}: ${message}`);
+
+   try {
+      const toast = await this.toastController.create({
+         message,
+         duration: 3000,
+         color,
+         position: 'top',
+         buttons: [
+            {
+               text: 'Chiudi',
+               role: 'cancel'
+            }
+         ]
+      });
+      await toast.present();
+   } catch (error) {
+      console.error('Error showing toast:', error);
+   }
+}
+
+   
+
    handleWebSocketMessage(message: any) {
       console.log('📨 WebSocket message received in game:', message);
 
@@ -293,7 +318,14 @@ export class GamePageComponent implements OnInit, OnDestroy {
          case 'GAME_ENDED':
             console.log('🏁 Game ended');
             this.showToast('La partita è terminata', 'warning');
+            this.handleSessionDeleted();
             this.router.navigate(['/home']);
+            break;
+
+         // NUOVO: Gestione eliminazione sessione da parte dell'host
+         case 'SESSION_DELETED':
+            console.log('🔥 Session deleted by host - redirecting to home');
+            this.handleSessionDeleted();
             break;
 
          case 'PLAYER_BANKRUPT':
@@ -304,6 +336,42 @@ export class GamePageComponent implements OnInit, OnDestroy {
 
          default:
             console.log('❓ Unknown message type in game:', message.type);
+      }
+   }
+
+   // NUOVO: Metodo per gestire l'eliminazione della sessione
+   private async handleSessionDeleted() {
+      console.log('🔥 Handling session deletion...');
+
+      try {
+         // Pulisci tutto il storage locale
+         this.gameService.clearStorage();
+
+         // Disconnetti WebSocket
+         this.webSocketService.disconnect();
+
+         // Mostra notifica all'utente
+         const alert = await this.alertController.create({
+            header: '🔥 Partita Chiusa',
+            message: 'La partita è stata chiusa dall\'host. Tutti i dati sono stati eliminati.',
+            buttons: [
+               {
+                  text: 'OK',
+                  handler: () => {
+                     // Reindirizza alla home
+                     this.router.navigate(['/home']);
+                  }
+               }
+            ],
+            backdropDismiss: false // Impedisce di chiudere cliccando fuori
+         });
+
+         await alert.present();
+
+      } catch (error) {
+         console.error('Error handling session deletion:', error);
+         // In caso di errore, reindirizza comunque alla home
+         this.router.navigate(['/home']);
       }
    }
 
@@ -353,21 +421,6 @@ export class GamePageComponent implements OnInit, OnDestroy {
       }
    }
 
-   // AGGIUNTO: Metodo per mostrare toast notifications (aggiungere ToastController se necessario)
-   private async showToast(message: string, color: 'success' | 'warning' | 'danger' = 'success') {
-      console.log(`🔔 ${color.toUpperCase()}: ${message}`);
-
-      // Opzionale: Se vuoi aggiungere ToastController
-      /*
-      const toast = await this.toastController.create({
-        message,
-        duration: 3000,
-        color,
-        position: 'top'
-      });
-      await toast.present();
-      */
-   }
 
    // AGGIUNTO: Metodo per controllare la connessione WebSocket
    private checkWebSocketConnection() {
@@ -1213,67 +1266,161 @@ export class GamePageComponent implements OnInit, OnDestroy {
    // AGGIORNATO: Menu con nuove azioni
    // ============================================
    async showMenu() {
+      const buttons = [
+
+         {
+            text: 'Gestione Patrimonio',
+            icon: 'analytics',
+            handler: () => {
+               this.showWealthManagementModal();
+            }
+         },
+         {
+            text: 'Riepilogo Proprietà',
+            icon: 'business',
+            handler: () => {
+               this.showPropertiesOverview();
+            }
+         },
+         {
+            text: 'Statistiche Partita',
+            icon: 'trending-up',
+            handler: () => {
+               this.showGameStatistics();
+            }
+         },
+         {
+            text: 'Calcolatore Affitto',
+            icon: 'calculator',
+            handler: () => {
+               this.showRentCalculator();
+            }
+         }
+      ];
+
+      // NUOVO: Aggiungi l'opzione "Chiudi Partita" solo per l'host
+      if (this.currentPlayer?.host) {
+         buttons.push({
+            text: 'Chiudi Partita',
+            icon: 'power',
+            handler: () => {
+               this.showCloseGameConfirmation();
+            }
+         });
+      }
+
+      // Aggiungi sempre il pulsante Annulla alla fine
+      buttons.push({
+         text: 'Annulla',
+         icon: 'close',
+         handler: () => {
+            // No action needed, just closes the action sheet
+         }
+      });
+
       const actionSheet = await this.actionSheetController.create({
          header: 'Menu',
+         buttons: buttons
+      });
+
+      await actionSheet.present();
+   }
+
+   // NUOVO: Metodo per la conferma di chiusura partita
+   async showCloseGameConfirmation() {
+      const alert = await this.alertController.create({
+         header: '⚠️ Chiudi Partita',
+         message: `
+      <strong>ATTENZIONE!</strong><br><br>
+      Questa azione eliminerà completamente la partita e tutti i dati associati:
+      <ul>
+        <li>• Tutti i giocatori saranno espulsi</li>
+        <li>• Tutte le proprietà saranno liberate</li>
+        <li>• Tutte le transazioni saranno cancellate</li>
+        <li>• La sessione sarà eliminata definitivamente</li>
+      </ul>
+      <br>
+      <strong>Sei sicuro di voler procedere?</strong>
+    `,
          buttons: [
             {
-               text: 'Paga Affitto',
-               icon: 'home',
-               handler: () => {
-                  this.showRentPaymentModal();
-               }
-            },
-            {
-               text: 'Trasferimento Multiplo Proprietà',
-               icon: 'git-branch',
-               handler: () => {
-                  this.showTradeModal();
-               }
-            },
-            {
-               text: 'Gestione Patrimonio',
-               icon: 'analytics',
-               handler: () => {
-                  this.showWealthManagementModal();
-               }
-            },
-            {
-               text: 'Visualizza Tutte le Transazioni',
-               icon: 'list',
-               handler: () => {
-                  this.showFullTransactionsList();
-               }
-            },
-            {
-               text: 'Riepilogo Proprietà',
-               icon: 'business',
-               handler: () => {
-                  this.showPropertiesOverview();
-               }
-            },
-            {
-               text: 'Statistiche Partita',
-               icon: 'trending-up',
-               handler: () => {
-                  this.showGameStatistics();
-               }
-            },
-            {
-               text: 'Calcolatore Affitto',
-               icon: 'calculator',
-               handler: () => {
-                  this.showRentCalculator();
-               }
-            },
-            {
                text: 'Annulla',
-               icon: 'close',
-               role: 'cancel'
+               role: 'cancel',
+               cssClass: 'secondary'
+            },
+            {
+               text: 'SÌ, CHIUDI PARTITA',
+               cssClass: 'danger',
+               handler: () => {
+                  this.closeGameCompletely();
+               }
             }
          ]
       });
-      await actionSheet.present();
+
+      await alert.present();
    }
+
+   // NUOVO: Metodo per chiudere completamente la partita
+   async closeGameCompletely() {
+      if (!this.currentPlayer?.host) {
+         console.error('Cannot close game - not authorized');
+         return;
+      }
+
+      const loading = await this.loadingController.create({
+         message: 'Chiusura partita in corso...',
+         spinner: 'crescent'
+      });
+      await loading.present();
+
+      try {
+         console.log('=== CLOSING GAME COMPLETELY ===');
+         console.log('Session code:', this.sessionCode);
+         console.log('Host player ID:', this.currentPlayer.id);
+
+         await firstValueFrom(
+            this.apiService.deleteSession(this.sessionCode, this.currentPlayer.id)
+         );
+
+         console.log('Game closed successfully');
+
+         // Pulisci tutto il storage locale
+         this.gameService.clearStorage();
+
+         // Mostra messaggio di conferma
+         const successAlert = await this.alertController.create({
+            header: '✅ Partita Chiusa',
+            message: 'La partita è stata chiusa completamente. Tutti i dati sono stati eliminati.',
+            buttons: ['OK']
+         });
+         await successAlert.present();
+
+         // Torna alla home
+         this.router.navigate(['/home']);
+
+      } catch (error) {
+         console.error('Error closing game:', error);
+
+         let errorMessage = 'Errore durante la chiusura della partita.';
+         if (error.status === 403) {
+            errorMessage = 'Non hai i permessi per chiudere questa partita.';
+         } else if (error.status === 404) {
+            errorMessage = 'La sessione non esiste più.';
+         }
+
+         const errorAlert = await this.alertController.create({
+            header: 'Errore',
+            message: errorMessage,
+            buttons: ['OK']
+         });
+         await errorAlert.present();
+
+      } finally {
+         loading.dismiss();
+      }
+   }
+
 
    // ============================================
    // Utility functions

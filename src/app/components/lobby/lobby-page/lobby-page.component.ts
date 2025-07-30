@@ -1,6 +1,6 @@
 import { Component, OnInit, OnDestroy } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
-import { AlertController, LoadingController } from '@ionic/angular';
+import { AlertController, LoadingController, ToastController } from '@ionic/angular';
 import { Subscription } from 'rxjs';
 import { firstValueFrom, take } from 'rxjs';
 import { ApiService } from '../../../services/api.service';
@@ -28,7 +28,8 @@ export class LobbyPageComponent implements OnInit, OnDestroy {
     private loadingController: LoadingController,
     private apiService: ApiService,
     public gameService: GameService,
-    private webSocketService: WebSocketService
+    private webSocketService: WebSocketService,
+    private toastController: ToastController
   ) { }
 
   ngOnInit() {
@@ -180,65 +181,112 @@ export class LobbyPageComponent implements OnInit, OnDestroy {
     );
   }
 
-  handleWebSocketMessage(message: any) {
-    console.log('📨 WebSocket message received in lobby:', message);
+handleWebSocketMessage(message: any) {
+  console.log('📨 WebSocket message received in lobby:', message);
 
-    switch (message.type) {
-      case 'PLAYER_JOINED':
-        console.log('👤 Player joined, refreshing session');
-        this.refreshSessionData();
-        // AGGIUNTO: Mostra notifica
-        this.showToast(`${message.data.name} si è unito alla partita`, 'success');
-        break;
+  switch (message.type) {
+    case 'PLAYER_JOINED':
+      console.log('👤 Player joined, refreshing session');
+      this.refreshSessionData();
+      // AGGIUNTO: Mostra notifica
+      this.showToast(`${message.data.name} si è unito alla partita`, 'success');
+      break;
 
-      case 'GAME_STARTED':
-        console.log('🎮 Game started, refreshing and potentially navigating');
-        this.refreshSessionData();
-        setTimeout(() => {
-          if (this.currentSession?.status === 'IN_PROGRESS') {
-            this.goToGame();
+    case 'GAME_STARTED':
+      console.log('🎮 Game started, refreshing and potentially navigating');
+      this.refreshSessionData();
+      setTimeout(() => {
+        if (this.currentSession?.status === 'IN_PROGRESS') {
+          this.goToGame();
+        }
+      }, 1000);
+      break;
+
+    case 'GAME_ENDED':
+      console.log('🏁 Game ended, returning to home');
+      this.showToast('La partita è terminata', 'warning');
+      this.goBack();
+      break;
+
+    // NUOVO: Gestione eliminazione sessione da parte dell'host
+    case 'SESSION_DELETED':
+      console.log('🔥 Session deleted by host - redirecting to home');
+      this.handleSessionDeleted();
+      break;
+
+    case 'SESSION_UPDATE':
+      console.log('🔄 Session update received');
+      this.refreshSessionData();
+      break;
+
+    // AGGIUNTO: Gestione nuovi tipi di messaggio
+    case 'BALANCE_UPDATE':
+      console.log('💰 Balance update received in lobby');
+      this.refreshSessionData();
+      break;
+
+    default:
+      console.log('❓ Unknown message type:', message.type);
+  }
+}
+
+// NUOVO: Metodo per gestire l'eliminazione della sessione
+private async handleSessionDeleted() {
+  console.log('🔥 Handling session deletion in lobby...');
+  
+  try {
+    // Pulisci tutto il storage locale
+    this.gameService.clearStorage();
+    
+    // Disconnetti WebSocket
+    this.webSocketService.disconnect();
+    
+    // Mostra notifica all'utente
+    const alert = await this.alertController.create({
+      header: '🔥 Partita Chiusa',
+      message: 'La partita è stata chiusa dall\'host. Tutti i dati sono stati eliminati.',
+      buttons: [
+        {
+          text: 'OK',
+          handler: () => {
+            // Reindirizza alla home
+            this.router.navigate(['/home']);
           }
-        }, 1000);
-        break;
-
-      case 'GAME_ENDED':
-        console.log('🏁 Game ended, returning to home');
-        this.showToast('La partita è terminata', 'warning');
-        this.goBack();
-        break;
-
-      case 'SESSION_UPDATE':
-        console.log('🔄 Session update received');
-        this.refreshSessionData();
-        break;
-
-      // AGGIUNTO: Gestione nuovi tipi di messaggio
-      case 'BALANCE_UPDATE':
-        console.log('💰 Balance update received in lobby');
-        this.refreshSessionData();
-        break;
-
-      default:
-        console.log('❓ Unknown message type:', message.type);
-    }
-  }
-
-  // AGGIUNTO: Metodo per mostrare toast notifications
-  private async showToast(message: string, color: 'success' | 'warning' | 'danger' | 'primary' = 'primary') {
-    // Se hai ToastController disponibile, altrimenti usa console
-    console.log(`🔔 ${color.toUpperCase()}: ${message}`);
-
-    // Opzionale: Se vuoi aggiungere ToastController
-    /*
-    const toast = await this.toastController.create({
-      message,
-      duration: 3000,
-      color,
-      position: 'top'
+        }
+      ],
+      backdropDismiss: false // Impedisce di chiudere cliccando fuori
     });
-    await toast.present();
-    */
+    
+    await alert.present();
+    
+  } catch (error) {
+    console.error('Error handling session deletion:', error);
+    // In caso di errore, reindirizza comunque alla home
+    this.router.navigate(['/home']);
   }
+}
+
+private async showToast(message: string, color: 'success' | 'warning' | 'danger' | 'primary' = 'primary') {
+   console.log(`🔔 ${color.toUpperCase()}: ${message}`);
+
+   try {
+      const toast = await this.toastController.create({
+         message,
+         duration: 3000,
+         color,
+         position: 'top',
+         buttons: [
+            {
+               text: 'Chiudi',
+               role: 'cancel'
+            }
+         ]
+      });
+      await toast.present();
+   } catch (error) {
+      console.error('Error showing toast:', error);
+   }
+}
 
   // CORREZIONE: Metodo refreshSessionData migliorato
   private async refreshSessionData() {

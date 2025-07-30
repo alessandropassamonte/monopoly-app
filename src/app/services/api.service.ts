@@ -526,4 +526,11 @@ export class ApiService {
       reasons: string[];
     }>(`${this.baseUrl}/properties/ownership/${ownershipId}/transfer-info`);
   }
+
+  /**
+ * NUOVO: Elimina completamente una sessione
+ */
+  deleteSession(sessionCode: string, hostPlayerId: number): Observable<void> {
+    return this.http.delete<void>(`${this.baseUrl}/sessions/${sessionCode}/delete?hostPlayerId=${hostPlayerId}`);
+  }
 }

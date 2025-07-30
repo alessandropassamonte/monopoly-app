@@ -43,8 +43,19 @@ export class LobbyPageComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy() {
+    console.log('=== LOBBY COMPONENT DESTROYING ===');
+
+    // Disconnetti le subscriptions
     this.subscriptions.forEach(sub => sub.unsubscribe());
-    this.webSocketService.disconnect();
+
+    // Disconnetti WebSocket solo se stiamo lasciando per il back button o errori
+    // NON disconnettere se stiamo andando al game o se la sessione è stata eliminata
+    const currentUrl = this.router.url;
+    if (!currentUrl.includes('/game/') && !currentUrl.includes('/home')) {
+      this.webSocketService.disconnect();
+    }
+
+    console.log('=== LOBBY CLEANUP COMPLETED ===');
   }
 
   async initializeLobby() {
@@ -169,124 +180,137 @@ export class LobbyPageComponent implements OnInit, OnDestroy {
     if (!this.sessionCode) return;
 
     console.log('=== SETTING UP WEBSOCKET ===');
-    this.webSocketService.connect(this.sessionCode);
 
-    this.subscriptions.push(
-      this.webSocketService.getMessages().subscribe((message) => {
-        if (message) {
-          console.log('=== WEBSOCKET MESSAGE ===', message);
-          this.handleWebSocketMessage(message);
-        }
-      })
-    );
-  }
-
-handleWebSocketMessage(message: any) {
-  console.log('📨 WebSocket message received in lobby:', message);
-
-  switch (message.type) {
-    case 'PLAYER_JOINED':
-      console.log('👤 Player joined, refreshing session');
-      this.refreshSessionData();
-      // AGGIUNTO: Mostra notifica
-      this.showToast(`${message.data.name} si è unito alla partita`, 'success');
-      break;
-
-    case 'GAME_STARTED':
-      console.log('🎮 Game started, refreshing and potentially navigating');
-      this.refreshSessionData();
-      setTimeout(() => {
-        if (this.currentSession?.status === 'IN_PROGRESS') {
-          this.goToGame();
-        }
-      }, 1000);
-      break;
-
-    case 'GAME_ENDED':
-      console.log('🏁 Game ended, returning to home');
-      this.showToast('La partita è terminata', 'warning');
-      this.goBack();
-      break;
-
-    // NUOVO: Gestione eliminazione sessione da parte dell'host
-    case 'SESSION_DELETED':
-      console.log('🔥 Session deleted by host - redirecting to home');
-      this.handleSessionDeleted();
-      break;
-
-    case 'SESSION_UPDATE':
-      console.log('🔄 Session update received');
-      this.refreshSessionData();
-      break;
-
-    // AGGIUNTO: Gestione nuovi tipi di messaggio
-    case 'BALANCE_UPDATE':
-      console.log('💰 Balance update received in lobby');
-      this.refreshSessionData();
-      break;
-
-    default:
-      console.log('❓ Unknown message type:', message.type);
-  }
-}
-
-// NUOVO: Metodo per gestire l'eliminazione della sessione
-private async handleSessionDeleted() {
-  console.log('🔥 Handling session deletion in lobby...');
-  
-  try {
-    // Pulisci tutto il storage locale
-    this.gameService.clearStorage();
-    
-    // Disconnetti WebSocket
+    // MIGLIORAMENTO: Disconnetti qualsiasi connessione precedente
     this.webSocketService.disconnect();
-    
-    // Mostra notifica all'utente
-    const alert = await this.alertController.create({
-      header: '🔥 Partita Chiusa',
-      message: 'La partita è stata chiusa dall\'host. Tutti i dati sono stati eliminati.',
-      buttons: [
-        {
-          text: 'OK',
-          handler: () => {
-            // Reindirizza alla home
-            this.router.navigate(['/home']);
+
+    // Piccolo delay per assicurarsi che la disconnessione sia completata
+    setTimeout(() => {
+      // Connetti alla nuova sessione
+      this.webSocketService.connect(this.sessionCode);
+
+      this.subscriptions.push(
+        this.webSocketService.getMessages().subscribe((message) => {
+          if (message) {
+            console.log('=== WEBSOCKET MESSAGE ===', message);
+            this.handleWebSocketMessage(message);
           }
-        }
-      ],
-      backdropDismiss: false // Impedisce di chiudere cliccando fuori
-    });
-    
-    await alert.present();
-    
-  } catch (error) {
-    console.error('Error handling session deletion:', error);
-    // In caso di errore, reindirizza comunque alla home
-    this.router.navigate(['/home']);
+        })
+      );
+    }, 200);
   }
-}
 
-private async showToast(message: string, color: 'success' | 'warning' | 'danger' | 'primary' = 'primary') {
-   console.log(`🔔 ${color.toUpperCase()}: ${message}`);
+  handleWebSocketMessage(message: any) {
+    console.log('📨 WebSocket message received in lobby:', message);
 
-   try {
-      const toast = await this.toastController.create({
-         message,
-         duration: 3000,
-         color,
-         position: 'top',
-         buttons: [
-            {
-               text: 'Chiudi',
-               role: 'cancel'
+    switch (message.type) {
+      case 'PLAYER_JOINED':
+        console.log('👤 Player joined, refreshing session');
+        this.refreshSessionData();
+        // AGGIUNTO: Mostra notifica
+        this.showToast(`${message.data.name} si è unito alla partita`, 'success');
+        break;
+
+      case 'GAME_STARTED':
+        console.log('🎮 Game started, refreshing and potentially navigating');
+        this.refreshSessionData();
+        setTimeout(() => {
+          if (this.currentSession?.status === 'IN_PROGRESS') {
+            this.goToGame();
+          }
+        }, 1000);
+        break;
+
+      case 'GAME_ENDED':
+        console.log('🏁 Game ended, returning to home');
+        this.showToast('La partita è terminata', 'warning');
+        this.goBack();
+        break;
+
+      // NUOVO: Gestione eliminazione sessione da parte dell'host
+      case 'SESSION_DELETED':
+        console.log('🔥 Session deleted by host - redirecting to home');
+        this.handleSessionDeleted();
+        break;
+
+      case 'SESSION_UPDATE':
+        console.log('🔄 Session update received');
+        this.refreshSessionData();
+        break;
+
+      // AGGIUNTO: Gestione nuovi tipi di messaggio
+      case 'BALANCE_UPDATE':
+        console.log('💰 Balance update received in lobby');
+        this.refreshSessionData();
+        break;
+
+      default:
+        console.log('❓ Unknown message type:', message.type);
+    }
+  }
+
+  // NUOVO: Metodo per gestire l'eliminazione della sessione
+  private async handleSessionDeleted() {
+    console.log('🔥 Handling session deletion in lobby...');
+
+    try {
+      // IMPORTANTE: Non disconnettere il WebSocket qui!
+      // Lascia che sia il router/navigazione a gestire la pulizia
+
+      // Pulisci tutto il storage locale
+      this.gameService.clearStorage();
+
+      // Pulisci lo stato locale del componente
+      this.currentSession = null;
+      this.currentPlayer = null;
+      this.isHost = false;
+
+      // Mostra notifica all'utente
+      const alert = await this.alertController.create({
+        header: '🔥 Partita Chiusa',
+        message: 'La partita è stata chiusa dall\'host. Tutti i dati sono stati eliminati.',
+        buttons: [
+          {
+            text: 'OK',
+            handler: () => {
+              // Reindirizza alla home
+              this.router.navigate(['/home']);
             }
-         ]
+          }
+        ],
+        backdropDismiss: false // Impedisce di chiudere cliccando fuori
+      });
+
+      await alert.present();
+
+    } catch (error) {
+      console.error('Error handling session deletion:', error);
+      // In caso di errore, reindirizza comunque alla home
+      this.router.navigate(['/home']);
+    }
+  }
+
+  private async showToast(message: string, color: 'success' | 'warning' | 'danger' | 'primary' = 'primary') {
+    console.log(`🔔 ${color.toUpperCase()}: ${message}`);
+
+    try {
+      const toast = await this.toastController.create({
+        message,
+        duration: 3000,
+        color,
+        position: 'top',
+        buttons: [
+          {
+            text: 'Chiudi',
+            role: 'cancel'
+          }
+        ]
       });
       await toast.present();
-   } catch (error) {
+    } catch (error) {
       console.error('Error showing toast:', error);
-   }
-}
+    }
+  }
 
   // CORREZIONE: Metodo refreshSessionData migliorato
   private async refreshSessionData() {

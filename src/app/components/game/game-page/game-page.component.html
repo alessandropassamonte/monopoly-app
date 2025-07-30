@@ -1,11 +1,10 @@
 <!-- src/app/components/game/game-page/game-page.component.html -->
 <!-- VERSIONE AGGIORNATA con funzionalità migliorate -->
 
-<ion-header>
+<ion-header class="header">
   <ion-toolbar color="primary">
     <ion-title class="monopoly-title">
-      <ion-icon name="diamond-outline" class="title-icon"></ion-icon>
-      Monopoly Bank - {{sessionCode}}
+      Session - {{sessionCode}}
     </ion-title>
     <ion-buttons slot="end">
       <ion-button (click)="showMenu()">
@@ -275,7 +274,7 @@
     </div>
 
     <!-- Recent Transactions -->
-    <div style="margin-bottom: 2rem;">
+    <div >
       <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem;">
         <div style="display: flex; align-items: center; gap: 1rem;">
           <div style="width: 4px; height: 2rem; background: linear-gradient(135deg, #e53e3e 0%, #c53030 100%); 
@@ -347,8 +346,17 @@
     </div>
 
   </div>
-</ion-content>
 
+
+</ion-content>
+<!-- ===== FOOTER CON AZIONI ===== -->
+<ion-footer class="footer">
+  <ion-toolbar>
+     <ion-title class="monopoly-title">
+      Session - {{sessionCode}}
+    </ion-title>
+  </ion-toolbar>
+</ion-footer>
 <style>
   @keyframes pulse {
 

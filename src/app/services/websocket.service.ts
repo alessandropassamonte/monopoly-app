@@ -12,7 +12,7 @@ export class WebSocketService {
   private messageSubject = new BehaviorSubject<WebSocketMessage | null>(null);
   private connectionStatus = new BehaviorSubject<boolean>(false);
   private currentSessionCode: string | null = null;
-  
+
   // AGGIUNTO: Tracciamento stato connessione
   private reconnectAttempts = 0;
   private maxReconnectAttempts = 5;
@@ -47,7 +47,7 @@ export class WebSocketService {
       console.log('✅ WebSocket Connected: ' + frame);
       this.connectionStatus.next(true);
       this.reconnectAttempts = 0;
-      
+
       // Riconnetti alla sessione se era attiva
       if (this.currentSessionCode) {
         this.subscribeToSession(this.currentSessionCode);
@@ -78,7 +78,7 @@ export class WebSocketService {
     if (this.reconnectAttempts < this.maxReconnectAttempts && this.currentSessionCode) {
       this.reconnectAttempts++;
       console.log(`🔄 Tentativo riconnessione ${this.reconnectAttempts}/${this.maxReconnectAttempts} in 5 secondi...`);
-      
+
       setTimeout(() => {
         if (this.currentSessionCode) {
           this.connect(this.currentSessionCode);
@@ -89,22 +89,63 @@ export class WebSocketService {
     }
   }
 
-  connect(sessionCode: string): void {
-    console.log(`🔌 Connecting to WebSocket for session: ${sessionCode}`);
-    this.currentSessionCode = sessionCode;
-    
-    // Disconnetti se già connesso
-    if (this.stompClient.connected) {
-      this.disconnect();
-    }
-
+forceCleanDisconnect(): void {
+  console.log('🧹 Forcing clean WebSocket disconnect...');
+  
+  // Reset di tutte le variabili di stato
+  this.currentSessionCode = null;
+  this.reconnectAttempts = 0;
+  
+  // Disconnetti completamente
+  if (this.stompClient) {
     try {
-      this.stompClient.activate();
+      this.stompClient.deactivate();
     } catch (error) {
-      console.error('❌ Errore attivazione WebSocket:', error);
-      this.handleConnectionError();
+      console.error('❌ Errore durante disconnessione forzata:', error);
     }
   }
+  
+  // Reset degli observable
+  this.messageSubject.next(null);
+  this.connectionStatus.next(false);
+  
+  console.log('✅ WebSocket clean disconnect completed');
+}
+
+connect(sessionCode: string): void {
+  console.log(`🔌 Connecting to WebSocket for session: ${sessionCode}`);
+  
+  // AGGIUNTO: Se cambio sessione, disconnetti prima
+  if (this.currentSessionCode && this.currentSessionCode !== sessionCode) {
+    console.log('🔄 Different session detected, forcing clean disconnect');
+    this.forceCleanDisconnect();
+    // Piccolo delay per assicurarsi che tutto sia pulito
+    setTimeout(() => {
+      this.actualConnect(sessionCode);
+    }, 100);
+    return;
+  }
+  
+  this.actualConnect(sessionCode);
+}
+
+// E sposta il codice originale del connect in questo metodo:
+private actualConnect(sessionCode: string): void {
+  this.currentSessionCode = sessionCode;
+  
+  // Disconnetti se già connesso
+  if (this.stompClient.connected) {
+    this.disconnect();
+  }
+
+  try {
+    this.stompClient.activate();
+  } catch (error) {
+    console.error('❌ Errore attivazione WebSocket:', error);
+    this.handleConnectionError();
+  }
+}
+
 
   private subscribeToSession(sessionCode: string): void {
     if (!this.stompClient.connected) {
@@ -134,7 +175,7 @@ export class WebSocketService {
     console.log('🔌 Disconnecting WebSocket...');
     this.currentSessionCode = null;
     this.reconnectAttempts = 0;
-    
+
     if (this.stompClient) {
       try {
         this.stompClient.deactivate();
@@ -142,7 +183,7 @@ export class WebSocketService {
         console.error('❌ Errore disconnessione WebSocket:', error);
       }
     }
-    
+
     this.connectionStatus.next(false);
   }
 

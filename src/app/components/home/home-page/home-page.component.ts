@@ -98,69 +98,76 @@ export class HomePageComponent implements OnInit {
     await alert.present();
   }
 
-  async createSession(hostName: string) {
-    const loading = await this.loadingController.create({
-      message: 'Creazione sessione...'
-    });
-    await loading.present();
+async createSession(hostName: string) {
+  const loading = await this.loadingController.create({
+    message: 'Creazione sessione...'
+  });
+  await loading.present();
 
-    try {
-      console.log('Creating session for host:', hostName);
-      const session = await firstValueFrom(this.apiService.createSession(hostName));
+  try {
+    console.log('=== CREATING NEW SESSION ===');
+    console.log('Host name:', hostName);
+    
+    // IMPORTANTE: Forza reset completo prima di creare nuova sessione
+    this.gameService.clearStorage();
+    
+    // Piccolo delay per assicurarsi che il clear sia completato
+    await new Promise(resolve => setTimeout(resolve, 100));
+    
+    const session = await firstValueFrom(this.apiService.createSession(hostName));
+    
+    if (session) {
+      console.log('✅ Session created successfully:', session);
+      console.log('Session players:', session.players);
       
-      if (session) {
-        console.log('Session created successfully:', session);
-        console.log('Session players:', session.players);
-        
-        // CORREZIONE: Gestione più robusta del currentPlayer
-        // Salva prima la sessione
-        this.gameService.setCurrentSession(session);
-        
-        // Trova l'host player usando più criteri
-        let hostPlayer = session.players.find(p => p.host === true);
-        
-        // Se non trova l'host con isHost, cerca per nome
-        if (!hostPlayer) {
-          hostPlayer = session.players.find(p => p.name === hostName);
-          console.warn('Host found by name instead of isHost flag:', hostPlayer);
-        }
-        
-        // Se ancora non lo trova, prendi il primo (fallback)
-        if (!hostPlayer && session.players.length > 0) {
-          hostPlayer = session.players[0];
-          console.warn('Using first player as fallback host:', hostPlayer);
-        }
-        
-        if (hostPlayer) {
-          console.log('Host player set:', hostPlayer);
-          console.log('Host player isHost property:', hostPlayer.host);
-          
-          // Salva nel localStorage per debug
-          localStorage.setItem('monopoly_debug_host_name', hostName);
-          localStorage.setItem('monopoly_debug_session_players', JSON.stringify(session.players));
-          
-          this.gameService.setCurrentPlayer(hostPlayer);
-          
-          // Naviga alla lobby
-          this.router.navigate(['/lobby', session.sessionCode]);
-        } else {
-          throw new Error('Impossibile identificare il player host nella sessione creata');
-        }
-      } else {
-        throw new Error('Session creation returned null');
+      // Imposta la nuova sessione
+      this.gameService.setCurrentSession(session);
+      
+      // Trova e imposta l'host player
+      let hostPlayer = session.players.find(p => p.host === true);
+      
+      // Fallback: se non trova l'host con flag, cerca per nome
+      if (!hostPlayer) {
+        hostPlayer = session.players.find(p => p.name === hostName);
+        console.warn('Host found by name instead of host flag:', hostPlayer);
       }
-    } catch (error) {
-      console.error('Error creating session:', error);
-      const alert = await this.alertController.create({
-        header: 'Errore',
-        message: 'Errore nella creazione della sessione. Riprova.',
-        buttons: ['OK']
-      });
-      await alert.present();
-    } finally {
-      loading.dismiss();
+      
+      // Fallback finale: prendi il primo player
+      if (!hostPlayer && session.players.length > 0) {
+        hostPlayer = session.players[0];
+        console.warn('Using first player as fallback host:', hostPlayer);
+      }
+      
+      if (hostPlayer) {
+        console.log('✅ Setting host player:', hostPlayer);
+        console.log('Host player isHost property:', hostPlayer.host);
+        
+        // Salva nel localStorage per debug e persistenza
+        localStorage.setItem('monopoly_debug_host_name', hostName);
+        localStorage.setItem('monopoly_debug_session_players', JSON.stringify(session.players));
+        
+        this.gameService.setCurrentPlayer(hostPlayer);
+        
+        // Naviga alla lobby (WebSocket verrà gestito dalla lobby)
+        this.router.navigate(['/lobby', session.sessionCode]);
+      } else {
+        throw new Error('Impossibile identificare il player host nella sessione creata');
+      }
+    } else {
+      throw new Error('Session creation returned null');
     }
+  } catch (error) {
+    console.error('❌ Error creating session:', error);
+    const alert = await this.alertController.create({
+      header: 'Errore',
+      message: 'Errore nella creazione della sessione. Riprova.',
+      buttons: ['OK']
+    });
+    await alert.present();
+  } finally {
+    loading.dismiss();
   }
+}
 
   async joinSession(sessionCode: string, playerName: string) {
     const loading = await this.loadingController.create({

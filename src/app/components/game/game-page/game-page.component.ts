@@ -39,7 +39,7 @@ export class GamePageComponent implements OnInit, OnDestroy {
       private apiService: ApiService,
       public gameService: GameService,
       private router: Router,
-         private toastController: ToastController,
+      private toastController: ToastController,
       private webSocketService: WebSocketService
    ) { }
 
@@ -264,28 +264,28 @@ export class GamePageComponent implements OnInit, OnDestroy {
    }
 
    private async showToast(message: string, color: 'success' | 'warning' | 'danger' = 'success') {
-   console.log(`🔔 ${color.toUpperCase()}: ${message}`);
+      console.log(`🔔 ${color.toUpperCase()}: ${message}`);
 
-   try {
-      const toast = await this.toastController.create({
-         message,
-         duration: 3000,
-         color,
-         position: 'top',
-         buttons: [
-            {
-               text: 'Chiudi',
-               role: 'cancel'
-            }
-         ]
-      });
-      await toast.present();
-   } catch (error) {
-      console.error('Error showing toast:', error);
+      try {
+         const toast = await this.toastController.create({
+            message,
+            duration: 3000,
+            color,
+            position: 'top',
+            buttons: [
+               {
+                  text: 'Chiudi',
+                  role: 'cancel'
+               }
+            ]
+         });
+         await toast.present();
+      } catch (error) {
+         console.error('Error showing toast:', error);
+      }
    }
-}
 
-   
+
 
    handleWebSocketMessage(message: any) {
       console.log('📨 WebSocket message received in game:', message);
@@ -344,11 +344,17 @@ export class GamePageComponent implements OnInit, OnDestroy {
       console.log('🔥 Handling session deletion...');
 
       try {
+         // IMPORTANTE: Non disconnettere il WebSocket qui!
+         // Lascia che sia il WebSocketService a gestire la disconnessione
+
          // Pulisci tutto il storage locale
          this.gameService.clearStorage();
 
-         // Disconnetti WebSocket
-         this.webSocketService.disconnect();
+         // Pulisci lo stato locale del componente
+         this.currentSession = null;
+         this.currentPlayer = null;
+         this.recentTransactions = [];
+         this.currentPlayerProperties = [];
 
          // Mostra notifica all'utente
          const alert = await this.alertController.create({
@@ -374,7 +380,6 @@ export class GamePageComponent implements OnInit, OnDestroy {
          this.router.navigate(['/home']);
       }
    }
-
    private handleBalanceUpdate(data: any) {
       console.log('💰 Handling balance update:', data);
 
@@ -1275,13 +1280,7 @@ export class GamePageComponent implements OnInit, OnDestroy {
                this.showWealthManagementModal();
             }
          },
-         {
-            text: 'Riepilogo Proprietà',
-            icon: 'business',
-            handler: () => {
-               this.showPropertiesOverview();
-            }
-         },
+         
          {
             text: 'Statistiche Partita',
             icon: 'trending-up',
@@ -1295,7 +1294,15 @@ export class GamePageComponent implements OnInit, OnDestroy {
             handler: () => {
                this.showRentCalculator();
             }
-         }
+         },
+         {
+            text: 'Vai alla Home',
+            icon: 'home',
+            handler: () => {
+               this.gameService.clearStorage();
+               this.router.navigate(['/home']);
+            }
+         },
       ];
 
       // NUOVO: Aggiungi l'opzione "Chiudi Partita" solo per l'host

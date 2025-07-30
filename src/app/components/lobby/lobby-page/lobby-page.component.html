@@ -17,17 +17,7 @@
 <ion-content style="--background: #f7fafc; min-height: 100vh; display: block !important;">
   <div style="padding: 1rem;">
 
-    <!-- DEBUG INFO (rimuovi in produzione) -->
-    <div
-      style="background: orange; color: white; padding: 10px; margin: 10px 0; border-radius: 5px; font-size: 0.8rem;">
-      <strong>DEBUG:</strong>
-      isHost: {{isHost}} |
-      status: {{currentSession?.status}} |
-      players: {{currentSession?.players?.length}} |
-      currentPlayer: {{currentPlayer?.name || 'null'}}
-    </div>
 
-    <!-- SELEZIONE MANUALE DI EMERGENZA (solo se currentPlayer è null) -->
     <div *ngIf="!currentPlayer && currentSession?.players"
       style="background: #fed7d7; color: #9b2c2c; padding: 15px; margin: 10px 0; border-radius: 5px; border-left: 4px solid #e53e3e;">
       <h4 style="margin: 0 0 10px 0;">⚠️ Player non riconosciuto - Seleziona manualmente:</h4>

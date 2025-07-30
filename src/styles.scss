@@ -256,3 +256,41 @@ body {
 
 
 
+/* ===== FIX ALTEZZA VIEWPORT MOBILE ===== */
+html, body {
+  height: 100%;
+  overflow: hidden;
+}
+
+// /* Fix per ion-content - altezza dinamica */
+// ion-content {
+//   --height: 100% !important;
+//   height: 100% !important;
+// }
+
+// /* Contenitori principali con altezza corretta */
+// .page-container {
+//   min-height: calc(100vh - var(--ion-safe-area-top) - var(--ion-safe-area-bottom));
+//   min-height: calc(100dvh - var(--ion-safe-area-top) - var(--ion-safe-area-bottom)); /* Fallback moderno */
+// }
+
+// /* Fix specifico per iOS Safari */
+// @supports (-webkit-touch-callout: none) {
+//   .page-container {
+//     min-height: -webkit-fill-available;
+//   }
+// }
+
+// /* Fix altezza per modali */
+// ion-modal {
+//   --height: auto;
+//   --max-height: calc(100vh - 60px);
+//   --max-height: calc(100dvh - 60px); /* Fallback moderno */
+// }
+
+// /* Scrolling migliorato */
+// .scroll-content {
+//   overflow-y: auto;
+//   -webkit-overflow-scrolling: touch;
+//   height: 100%;
+// }

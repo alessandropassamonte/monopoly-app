@@ -240,15 +240,22 @@
 
   </div>
 
-   <div class="footer-actions">
-      <ion-button 
+   <div class="footer-actions"style="height: 20%;" >
+      <!-- <ion-button 
         fill="clear" 
         color="medium"
         (click)="resetSelections()"
         [disabled]="!selectedRecipient && selectedProperties.length === 0">
         <ion-icon name="refresh-outline" slot="start"></ion-icon>
         Reset
+      </ion-button> -->
+       <ion-button 
+        fill="clear" 
+        color="medium"
+        (click)="dismiss()">
+        Annulla
       </ion-button>
+
       <ion-button 
       fill="clear" 
         color="success"
@@ -258,13 +265,7 @@
         Conferma Scambio
       </ion-button>
 
-      <ion-button 
-        fill="clear" 
-        color="medium"
-        (click)="dismiss()">
-        Annulla
-      </ion-button>
-
+     
       
     </div>
 </ion-content>

@@ -14,11 +14,13 @@ import { TradeModalComponent } from './trade-modal/trade-modal.component';
     CommonModule,
     FormsModule,
     IonicModule,
-    GamePageRoutingModule,
+    GamePageRoutingModule
+  ],
+  declarations: [
+    GamePageComponent,
     PropertiesModalComponent,
     WealthManagementModalComponent,
-    TradeModalComponent 
-  ],
-  declarations: [GamePageComponent]
+    TradeModalComponent
+  ]
 })
 export class GamePageModule {}

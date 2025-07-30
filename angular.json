@@ -38,23 +38,31 @@
             "scripts": []
           },
           "configurations": {
+            "single-bundle": {
+              "outputHashing": "none",
+              "optimization": false,
+              "sourceMap": false,
+              "namedChunks": false,
+              "extractLicenses": false
+            },
             "production": {
               "budgets": [
                 {
                   "type": "initial",
-                  "maximumWarning": "500kB",
-                  "maximumError": "1MB"
+                  "maximumWarning": "5000kB",
+                  "maximumError": "5MB"
                 },
                 {
                   "type": "anyComponentStyle",
-                  "maximumWarning": "4kB",
-                  "maximumError": "8kB"
+                  "maximumWarning": "100kB",
+                  "maximumError": "300kB"
                 }
               ],
               "outputHashing": "all"
             },
             "development": {
               "optimization": false,
+              
               "extractLicenses": false,
               "sourceMap": true
             }

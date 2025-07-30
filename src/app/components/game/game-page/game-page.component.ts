@@ -1474,12 +1474,19 @@ export class GamePageComponent implements OnInit, OnDestroy {
       return 'amount-neutral';
    }
 
-   formatTime(timestamp: string): string {
-      return new Date(timestamp).toLocaleTimeString('it-IT', {
-         hour: '2-digit',
-         minute: '2-digit'
-      });
-   }
+  formatTime(timestamp: string | number[] | number): string {
+  let date: Date;
+
+  if (Array.isArray(timestamp)) {
+    // [year, month(1‑12), day, hour, min, sec, nanos]
+    const [y, m, d, hh = 0, mm = 0, ss = 0, ns = 0] = timestamp;
+    date = new Date(y, m - 1, d, hh, mm, ss, Math.floor(ns / 1_000_000));
+  } else {
+    date = new Date(timestamp);   // string ISO o epoch millis
+  }
+
+  return date.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
+}
 
    // Metodi di supporto per il design moderno
    getPlayerColorHex(color: string): string {

@@ -17,8 +17,6 @@ export interface TradeOffer {
 
 @Component({
   selector: 'app-trade-modal',
-  standalone: true,
-  imports: [CommonModule, FormsModule, IonicModule],
   templateUrl: './trade-modal.component.html',
   styleUrls: ['./trade-modal.component.scss']
 })

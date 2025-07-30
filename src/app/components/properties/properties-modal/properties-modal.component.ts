@@ -13,8 +13,6 @@ import { CommonModule } from '@angular/common';
 
 @Component({
   selector: 'app-properties-modal',
-  standalone: true,
-  imports: [CommonModule, FormsModule, IonicModule],
   templateUrl: './properties-modal.component.html',
   styleUrls: ['./properties-modal.component.scss']
 })

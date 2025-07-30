@@ -20,8 +20,6 @@ interface PlayerWealth {
 
 @Component({
   selector: 'app-wealth-management-modal',
-  standalone: true,
-  imports: [CommonModule, FormsModule, IonicModule],
   templateUrl: './wealth-management-modal.component.html',
   styleUrls: ['./wealth-management-modal.component.scss']
 })

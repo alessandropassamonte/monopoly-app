@@ -14,7 +14,11 @@
     "lint": "ng lint",
     "e2e": "ng e2e",
     "ionic:build": "ng build",
-    "ionic:serve": "ng serve"
+    "ionic:serve": "ng serve",
+    "github-build": "ng build --configuration production --base-href '/monopoly-app/'",
+    "github-deploy": "npx angular-cli-ghpages --dir=dist/monopoly-app/browser --no-silent",
+    "deploy": "npm run github-build && npm run github-deploy",
+    "deploy-gh": "ng deploy --base-href=/monopoly-app/"
   },
   "private": true,
   "dependencies": {

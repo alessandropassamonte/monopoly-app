@@ -1,3 +1,5 @@
+
+
 import { Injectable } from '@angular/core';
 import { BehaviorSubject, Observable } from 'rxjs';
 import { Client } from '@stomp/stompjs';
@@ -13,13 +15,11 @@ export class WebSocketService {
   private connectionStatus = new BehaviorSubject<boolean>(false);
   private currentSessionCode: string | null = null;
 
-  // AGGIUNTO: Tracciamento stato connessione
   private reconnectAttempts = 0;
   private maxReconnectAttempts = 5;
 
   constructor() {
     this.stompClient = new Client({
-      // CORREZIONE: URL dinamico basato su window.location
       brokerURL: this.getWebSocketUrl(),
       connectHeaders: {},
       debug: (str) => {
@@ -30,16 +30,29 @@ export class WebSocketService {
       heartbeatOutgoing: 4000,
     });
 
-    // AGGIUNTO: Gestione eventi di connessione migliorata
     this.setupConnectionHandlers();
   }
 
   private getWebSocketUrl(): string {
-    // Determina automaticamente l'URL WebSocket basato su window.location
+    // 🔧 FIX: Usa ws_uri dall'environment invece di costruire l'URL
+    if (environment.ws_uri) {
+      // Assicurati che usi il protocollo corretto
+      const wsUrl = environment.ws_uri.replace('http://', 'ws://').replace('https://', 'wss://');
+      return `${wsUrl}/ws`;
+    }
+
+    // Fallback per sviluppo locale
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const host = environment.host;
-    const port = '8080'; // Porta del server Spring
-    return `${protocol}//${host}:${port}/ws`;
+    const host = environment.host || window.location.hostname;
+    
+    // 🔧 FIX: Non includere porta per deployment di produzione
+    const isProduction = environment.production || host.includes('railway.app');
+    if (isProduction) {
+      return `${protocol}//${host}/ws`;
+    } else {
+      // Solo per sviluppo locale
+      return `${protocol}//${host}:8080/ws`;
+    }
   }
 
   private setupConnectionHandlers(): void {
@@ -48,7 +61,6 @@ export class WebSocketService {
       this.connectionStatus.next(true);
       this.reconnectAttempts = 0;
 
-      // Riconnetti alla sessione se era attiva
       if (this.currentSessionCode) {
         this.subscribeToSession(this.currentSessionCode);
       }
@@ -89,63 +101,36 @@ export class WebSocketService {
     }
   }
 
-forceCleanDisconnect(): void {
-  console.log('🧹 Forcing clean WebSocket disconnect...');
-  
-  // Reset di tutte le variabili di stato
-  this.currentSessionCode = null;
-  this.reconnectAttempts = 0;
-  
-  // Disconnetti completamente
-  if (this.stompClient) {
+  connect(sessionCode: string): void {
+    console.log(`🔌 Connecting to WebSocket for session: ${sessionCode}`);
+    console.log(`🔗 WebSocket URL: ${this.getWebSocketUrl()}`);
+    
+    if (this.currentSessionCode && this.currentSessionCode !== sessionCode) {
+      console.log('🔄 Different session detected, forcing clean disconnect');
+      this.forceCleanDisconnect();
+      setTimeout(() => {
+        this.actualConnect(sessionCode);
+      }, 100);
+      return;
+    }
+    
+    this.actualConnect(sessionCode);
+  }
+
+  private actualConnect(sessionCode: string): void {
+    this.currentSessionCode = sessionCode;
+    
+    if (this.stompClient.connected) {
+      this.disconnect();
+    }
+
     try {
-      this.stompClient.deactivate();
+      this.stompClient.activate();
     } catch (error) {
-      console.error('❌ Errore durante disconnessione forzata:', error);
+      console.error('❌ Errore attivazione WebSocket:', error);
+      this.handleConnectionError();
     }
   }
-  
-  // Reset degli observable
-  this.messageSubject.next(null);
-  this.connectionStatus.next(false);
-  
-  console.log('✅ WebSocket clean disconnect completed');
-}
-
-connect(sessionCode: string): void {
-  console.log(`🔌 Connecting to WebSocket for session: ${sessionCode}`);
-  
-  // AGGIUNTO: Se cambio sessione, disconnetti prima
-  if (this.currentSessionCode && this.currentSessionCode !== sessionCode) {
-    console.log('🔄 Different session detected, forcing clean disconnect');
-    this.forceCleanDisconnect();
-    // Piccolo delay per assicurarsi che tutto sia pulito
-    setTimeout(() => {
-      this.actualConnect(sessionCode);
-    }, 100);
-    return;
-  }
-  
-  this.actualConnect(sessionCode);
-}
-
-// E sposta il codice originale del connect in questo metodo:
-private actualConnect(sessionCode: string): void {
-  this.currentSessionCode = sessionCode;
-  
-  // Disconnetti se già connesso
-  if (this.stompClient.connected) {
-    this.disconnect();
-  }
-
-  try {
-    this.stompClient.activate();
-  } catch (error) {
-    console.error('❌ Errore attivazione WebSocket:', error);
-    this.handleConnectionError();
-  }
-}
-
 
   private subscribeToSession(sessionCode: string): void {
     if (!this.stompClient.connected) {
@@ -154,7 +139,6 @@ private actualConnect(sessionCode: string): void {
     }
 
     try {
-      // Subscribe to session updates
       this.stompClient.subscribe(`/topic/session/${sessionCode}`, (message) => {
         try {
           const wsMessage: WebSocketMessage = JSON.parse(message.body);
@@ -187,6 +171,26 @@ private actualConnect(sessionCode: string): void {
     this.connectionStatus.next(false);
   }
 
+  forceCleanDisconnect(): void {
+    console.log('🧹 Forcing clean WebSocket disconnect...');
+    
+    this.currentSessionCode = null;
+    this.reconnectAttempts = 0;
+    
+    if (this.stompClient) {
+      try {
+        this.stompClient.deactivate();
+      } catch (error) {
+        console.error('❌ Errore durante disconnessione forzata:', error);
+      }
+    }
+    
+    this.messageSubject.next(null);
+    this.connectionStatus.next(false);
+    
+    console.log('✅ WebSocket clean disconnect completed');
+  }
+
   getMessages(): Observable<WebSocketMessage | null> {
     return this.messageSubject.asObservable();
   }
@@ -195,7 +199,6 @@ private actualConnect(sessionCode: string): void {
     return this.connectionStatus.asObservable();
   }
 
-  // AGGIUNTO: Metodo per forzare la riconnessione
   forceReconnect(): void {
     console.log('🔄 Forzando riconnessione WebSocket...');
     if (this.currentSessionCode) {
@@ -208,12 +211,10 @@ private actualConnect(sessionCode: string): void {
     }
   }
 
-  // AGGIUNTO: Metodo per verificare lo stato
   isConnected(): boolean {
     return this.stompClient?.connected || false;
   }
 
-  // AGGIUNTO: Metodo per ottenere la sessione corrente
   getCurrentSessionCode(): string | null {
     return this.currentSessionCode;
   }

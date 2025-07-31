@@ -27,7 +27,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: "dist/monopoly-app/browser"
+          path: "./dist/monopoly-app/browser"
 
   deploy:
     needs: build

@@ -1,5 +1,3 @@
-
-
 import { Injectable } from '@angular/core';
 import { BehaviorSubject, Observable } from 'rxjs';
 import { Client } from '@stomp/stompjs';
@@ -16,48 +14,78 @@ export class WebSocketService {
   private currentSessionCode: string | null = null;
 
   private reconnectAttempts = 0;
-  private maxReconnectAttempts = 5;
+  private maxReconnectAttempts = environment.websocket?.maxReconnectAttempts || 10;
+  private reconnectDelay = environment.websocket?.reconnectDelay || 5000;
 
   constructor() {
-    this.stompClient = new Client({
+    this.initializeWebSocketClient();
+  }
+
+  private initializeWebSocketClient(): void {
+      interface WebSocketConfig {
+        debug?: boolean;
+        heartbeatIncoming?: number;
+        heartbeatOutgoing?: number;
+        connectionTimeout?: number;
+        maxReconnectAttempts?: number;
+        reconnectDelay?: number;
+      }
+      
+      const wsConfig: WebSocketConfig = environment.websocket || {};
+      
+      this.stompClient = new Client({
       brokerURL: this.getWebSocketUrl(),
       connectHeaders: {},
-      debug: (str) => {
-        console.log('STOMP: ' + str);
-      },
-      reconnectDelay: 5000,
-      heartbeatIncoming: 4000,
-      heartbeatOutgoing: 4000,
+      debug: wsConfig.debug ? (str) => console.log('🔍 STOMP:', str) : undefined,
+      
+      // ⚠️ Configurazioni critiche per HTTPS/WSS
+      reconnectDelay: this.reconnectDelay,
+      heartbeatIncoming: wsConfig.heartbeatIncoming || 25000,
+      heartbeatOutgoing: wsConfig.heartbeatOutgoing || 25000,
+      
+      // ✅ Configurazioni aggiuntive per stabilità
+      connectionTimeout: wsConfig.connectionTimeout || 10000,
+      
+      // Configurazione WebSocket per HTTPS
+      webSocketFactory: () => {
+        const ws = new WebSocket(this.getWebSocketUrl());
+        
+        // Headers aggiuntivi per HTTPS
+        ws.addEventListener('open', () => {
+          console.log('✅ WebSocket nativo aperto');
+        });
+        
+        ws.addEventListener('error', (error) => {
+          console.error('❌ WebSocket nativo errore:', error);
+        });
+        
+        return ws;
+      }
     });
 
     this.setupConnectionHandlers();
   }
 
   private getWebSocketUrl(): string {
-    // 🔧 FIX: Usa ws_uri dall'environment invece di costruire l'URL
+    // ✅ Usa direttamente l'URL configurato nell'environment
     if (environment.ws_uri) {
-      // Assicurati che usi il protocollo corretto
-      const wsUrl = environment.ws_uri.replace('http://', 'ws://').replace('https://', 'wss://');
-      return `${wsUrl}/ws`;
+      console.log('🔗 Connessione WebSocket a:', environment.ws_uri);
+      return environment.ws_uri;
     }
 
     // Fallback per sviluppo locale
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const host = environment.host || window.location.hostname;
+    const port = environment.production ? '' : ':8080';
     
-    // 🔧 FIX: Non includere porta per deployment di produzione
-    const isProduction = environment.production || host.includes('railway.app');
-    if (isProduction) {
-      return `${protocol}//${host}/ws`;
-    } else {
-      // Solo per sviluppo locale
-      return `${protocol}//${host}:8080/ws`;
-    }
+    const wsUrl = `${protocol}//${host}${port}/ws`;
+    console.log('🔗 Fallback WebSocket URL:', wsUrl);
+    return wsUrl;
   }
 
   private setupConnectionHandlers(): void {
     this.stompClient.onConnect = (frame) => {
-      console.log('✅ WebSocket Connected: ' + frame);
+      console.log('✅ WebSocket Connesso:', frame);
       this.connectionStatus.next(true);
       this.reconnectAttempts = 0;
 
@@ -67,130 +95,105 @@ export class WebSocketService {
     };
 
     this.stompClient.onStompError = (frame) => {
-      console.error('❌ STOMP error: ' + frame.headers['message']);
-      console.error('Additional details: ' + frame.body);
+      console.error('❌ STOMP Errore:', frame.headers['message']);
+      console.error('Dettagli:', frame.body);
       this.connectionStatus.next(false);
       this.handleConnectionError();
     };
 
     this.stompClient.onWebSocketError = (error) => {
-      console.error('❌ WebSocket connection error:', error);
+      console.error('❌ WebSocket Errore:', error);
       this.connectionStatus.next(false);
       this.handleConnectionError();
     };
 
     this.stompClient.onWebSocketClose = (event) => {
-      console.log('🔌 WebSocket connection closed:', event);
+      console.log('🔌 WebSocket Chiuso:', event);
       this.connectionStatus.next(false);
-      this.handleConnectionError();
+      
+      // Non riconnettere automaticamente se la chiusura è intenzionale
+      if (event.code !== 1000) { // 1000 = chiusura normale
+        this.handleConnectionError();
+      }
+    };
+
+    // ✅ Handler aggiuntivo per disconnect
+    this.stompClient.onDisconnect = (frame) => {
+      console.log('🔌 STOMP Disconnesso:', frame);
+      this.connectionStatus.next(false);
     };
   }
 
   private handleConnectionError(): void {
-    if (this.reconnectAttempts < this.maxReconnectAttempts && this.currentSessionCode) {
+    if (this.reconnectAttempts < this.maxReconnectAttempts) {
       this.reconnectAttempts++;
-      console.log(`🔄 Tentativo riconnessione ${this.reconnectAttempts}/${this.maxReconnectAttempts} in 5 secondi...`);
+      const delay = this.reconnectDelay * Math.pow(1.5, this.reconnectAttempts - 1); // Exponential backoff
+      
+      console.log(`🔄 Tentativo riconnessione ${this.reconnectAttempts}/${this.maxReconnectAttempts} in ${delay/1000}s...`);
 
       setTimeout(() => {
-        if (this.currentSessionCode) {
+        if (this.currentSessionCode && !this.stompClient.connected) {
+          console.log('🔄 Riconnessione WebSocket...');
           this.connect(this.currentSessionCode);
         }
-      }, 5000);
+      }, delay);
     } else {
-      console.error('❌ Raggiunto limite massimo tentativi riconnessione');
+      console.error('❌ Impossibile riconnettersi dopo', this.maxReconnectAttempts, 'tentativi');
+      // Potresti emettere un evento per informare l'UI
+      this.messageSubject.next({
+        type: 'CONNECTION_FAILED',
+        sessionCode: this.currentSessionCode || '',
+        data: { message: 'Connessione persa. Ricarica la pagina.' },
+        timestamp: new Date().toISOString()
+      });
     }
   }
 
   connect(sessionCode: string): void {
-    console.log(`🔌 Connecting to WebSocket for session: ${sessionCode}`);
-    console.log(`🔗 WebSocket URL: ${this.getWebSocketUrl()}`);
-    
-    if (this.currentSessionCode && this.currentSessionCode !== sessionCode) {
-      console.log('🔄 Different session detected, forcing clean disconnect');
-      this.forceCleanDisconnect();
-      setTimeout(() => {
-        this.actualConnect(sessionCode);
-      }, 100);
-      return;
-    }
-    
-    this.actualConnect(sessionCode);
-  }
-
-  private actualConnect(sessionCode: string): void {
     this.currentSessionCode = sessionCode;
     
     if (this.stompClient.connected) {
-      this.disconnect();
+      console.log('✅ WebSocket già connesso');
+      this.subscribeToSession(sessionCode);
+      return;
     }
 
-    try {
-      this.stompClient.activate();
-    } catch (error) {
-      console.error('❌ Errore attivazione WebSocket:', error);
-      this.handleConnectionError();
+    console.log('🔗 Connessione WebSocket per sessione:', sessionCode);
+    this.stompClient.activate();
+  }
+
+  disconnect(): void {
+    console.log('🔌 Disconnessione WebSocket...');
+    this.currentSessionCode = null;
+    this.reconnectAttempts = 0;
+    
+    if (this.stompClient.connected) {
+      this.stompClient.deactivate();
     }
+    
+    this.connectionStatus.next(false);
   }
 
   private subscribeToSession(sessionCode: string): void {
     if (!this.stompClient.connected) {
-      console.warn('⚠️ WebSocket non connesso, impossibile sottoscrivere');
+      console.warn('⚠️ STOMP non connesso, impossibile sottoscriversi');
       return;
     }
 
-    try {
-      this.stompClient.subscribe(`/topic/session/${sessionCode}`, (message) => {
-        try {
-          const wsMessage: WebSocketMessage = JSON.parse(message.body);
-          console.log('📨 Messaggio WebSocket ricevuto:', wsMessage);
-          this.messageSubject.next(wsMessage);
-        } catch (parseError) {
-          console.error('❌ Errore parsing messaggio WebSocket:', parseError);
-        }
-      });
-
-      console.log(`✅ Sottoscritto ai messaggi della sessione: ${sessionCode}`);
-    } catch (error) {
-      console.error('❌ Errore sottoscrizione WebSocket:', error);
-    }
-  }
-
-  disconnect(): void {
-    console.log('🔌 Disconnecting WebSocket...');
-    this.currentSessionCode = null;
-    this.reconnectAttempts = 0;
-
-    if (this.stompClient) {
+    console.log('📡 Sottoscrizione alla sessione:', sessionCode);
+    
+    this.stompClient.subscribe(`/topic/session/${sessionCode}`, (message) => {
       try {
-        this.stompClient.deactivate();
+        const wsMessage: WebSocketMessage = JSON.parse(message.body);
+        console.log('📩 Messaggio ricevuto:', wsMessage.type);
+        this.messageSubject.next(wsMessage);
       } catch (error) {
-        console.error('❌ Errore disconnessione WebSocket:', error);
+        console.error('❌ Errore parsing messaggio WebSocket:', error);
       }
-    }
-
-    this.connectionStatus.next(false);
+    });
   }
 
-  forceCleanDisconnect(): void {
-    console.log('🧹 Forcing clean WebSocket disconnect...');
-    
-    this.currentSessionCode = null;
-    this.reconnectAttempts = 0;
-    
-    if (this.stompClient) {
-      try {
-        this.stompClient.deactivate();
-      } catch (error) {
-        console.error('❌ Errore durante disconnessione forzata:', error);
-      }
-    }
-    
-    this.messageSubject.next(null);
-    this.connectionStatus.next(false);
-    
-    console.log('✅ WebSocket clean disconnect completed');
-  }
-
+  // Metodi pubblici
   getMessages(): Observable<WebSocketMessage | null> {
     return this.messageSubject.asObservable();
   }
@@ -199,23 +202,20 @@ export class WebSocketService {
     return this.connectionStatus.asObservable();
   }
 
+  isConnected(): boolean {
+    return this.stompClient.connected;
+  }
+
+  // Metodo per forzare la riconnessione
   forceReconnect(): void {
-    console.log('🔄 Forzando riconnessione WebSocket...');
+    console.log('🔄 Riconnessione forzata...');
+    this.reconnectAttempts = 0;
+    this.disconnect();
+    
     if (this.currentSessionCode) {
-      this.disconnect();
       setTimeout(() => {
-        if (this.currentSessionCode) {
-          this.connect(this.currentSessionCode);
-        }
+        this.connect(this.currentSessionCode!);
       }, 1000);
     }
-  }
-
-  isConnected(): boolean {
-    return this.stompClient?.connected || false;
-  }
-
-  getCurrentSessionCode(): string | null {
-    return this.currentSessionCode;
   }
 }

@@ -30,35 +30,35 @@ export class WebSocketService {
         maxReconnectAttempts?: number;
         reconnectDelay?: number;
       }
-      
+
       const wsConfig: WebSocketConfig = environment.websocket || {};
-      
+
       this.stompClient = new Client({
       brokerURL: this.getWebSocketUrl(),
       connectHeaders: {},
       debug: wsConfig.debug ? (str) => console.log('🔍 STOMP:', str) : undefined,
-      
+
       // ⚠️ Configurazioni critiche per HTTPS/WSS
       reconnectDelay: this.reconnectDelay,
       heartbeatIncoming: wsConfig.heartbeatIncoming || 25000,
       heartbeatOutgoing: wsConfig.heartbeatOutgoing || 25000,
-      
+
       // ✅ Configurazioni aggiuntive per stabilità
       connectionTimeout: wsConfig.connectionTimeout || 10000,
-      
+
       // Configurazione WebSocket per HTTPS
       webSocketFactory: () => {
         const ws = new WebSocket(this.getWebSocketUrl());
-        
+
         // Headers aggiuntivi per HTTPS
         ws.addEventListener('open', () => {
           console.log('✅ WebSocket nativo aperto');
         });
-        
+
         ws.addEventListener('error', (error) => {
           console.error('❌ WebSocket nativo errore:', error);
         });
-        
+
         return ws;
       }
     });
@@ -76,8 +76,8 @@ export class WebSocketService {
     // Fallback per sviluppo locale
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const host = environment.host || window.location.hostname;
-    const port = environment.production ? '' : ':8080';
-    
+    const port = environment.production ? '' : ':8090';
+
     const wsUrl = `${protocol}//${host}${port}/ws`;
     console.log('🔗 Fallback WebSocket URL:', wsUrl);
     return wsUrl;
@@ -110,7 +110,7 @@ export class WebSocketService {
     this.stompClient.onWebSocketClose = (event) => {
       console.log('🔌 WebSocket Chiuso:', event);
       this.connectionStatus.next(false);
-      
+
       // Non riconnettere automaticamente se la chiusura è intenzionale
       if (event.code !== 1000) { // 1000 = chiusura normale
         this.handleConnectionError();
@@ -128,7 +128,7 @@ export class WebSocketService {
     if (this.reconnectAttempts < this.maxReconnectAttempts) {
       this.reconnectAttempts++;
       const delay = this.reconnectDelay * Math.pow(1.5, this.reconnectAttempts - 1); // Exponential backoff
-      
+
       console.log(`🔄 Tentativo riconnessione ${this.reconnectAttempts}/${this.maxReconnectAttempts} in ${delay/1000}s...`);
 
       setTimeout(() => {
@@ -151,7 +151,7 @@ export class WebSocketService {
 
   connect(sessionCode: string): void {
     this.currentSessionCode = sessionCode;
-    
+
     if (this.stompClient.connected) {
       console.log('✅ WebSocket già connesso');
       this.subscribeToSession(sessionCode);
@@ -166,11 +166,11 @@ export class WebSocketService {
     console.log('🔌 Disconnessione WebSocket...');
     this.currentSessionCode = null;
     this.reconnectAttempts = 0;
-    
+
     if (this.stompClient.connected) {
       this.stompClient.deactivate();
     }
-    
+
     this.connectionStatus.next(false);
   }
 
@@ -181,7 +181,7 @@ export class WebSocketService {
     }
 
     console.log('📡 Sottoscrizione alla sessione:', sessionCode);
-    
+
     this.stompClient.subscribe(`/topic/session/${sessionCode}`, (message) => {
       try {
         const wsMessage: WebSocketMessage = JSON.parse(message.body);
@@ -211,7 +211,7 @@ export class WebSocketService {
     console.log('🔄 Riconnessione forzata...');
     this.reconnectAttempts = 0;
     this.disconnect();
-    
+
     if (this.currentSessionCode) {
       setTimeout(() => {
         this.connect(this.currentSessionCode!);

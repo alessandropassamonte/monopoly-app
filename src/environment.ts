@@ -10,9 +10,6 @@ export const environment = {
   // 🔧 Configurazioni locali commentate per riferimento
   // Decommentare per sviluppo locale:
 
-  // api_url: 'http://localhost:8080/',
-  // ws_uri: 'http://localhost:8080',
-  // host: 'localhost',
 
     api_url: 'http://93.42.111.232:8090/',
     ws_uri: 'http://93.42.111.232:8090',

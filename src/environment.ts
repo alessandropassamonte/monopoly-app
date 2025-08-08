@@ -15,8 +15,8 @@ export const environment = {
   // host: 'localhost',
 
     api_url: 'http://93.42.111.232:8090/',
-  ws_uri: 'http://93.42.111.232:8090',
-  host: '93.42.111.232',
+    ws_uri: 'http://93.42.111.232:8090',
+    host: '93.42.111.232',
 
 websocket: {
     // Configurazioni specifiche per WSS
